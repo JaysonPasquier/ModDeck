@@ -1516,3 +1516,102 @@ body {
 .theme-purple .app-container {
     background: linear-gradient(135deg, #1a0d2e 0%, #2d1b4e 100%);
 }
+
+/* Update system styles */
+.restart-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10001;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.restart-notification > div {
+    background: #9147ff !important;
+    color: white !important;
+    padding: 15px !important;
+    border-radius: 8px !important;
+    max-width: 300px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.restart-notification h4 {
+    margin: 0 0 10px 0 !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+.restart-notification p {
+    margin: 0 0 15px 0 !important;
+    font-size: 14px !important;
+    opacity: 0.9;
+}
+
+.restart-notification button {
+    background: white !important;
+    color: #9147ff !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    transition: all 0.2s !important;
+}
+
+.restart-notification button:hover {
+    background: #f0f0f0 !important;
+    transform: translateY(-1px);
+}
+
+/* Update confirmation modal specific styles */
+.modal-content h3 {
+    color: #9147ff;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.modal-content h4 {
+    color: #efeff1;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #9147ff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #7c3aed;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #464649;
+    color: #efeff1;
+}
+
+.btn-secondary:hover {
+    background: #525255;
+    transform: translateY(-1px);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

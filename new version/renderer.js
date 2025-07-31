@@ -146,6 +146,11 @@ class ModDeckApp {
 
         // Load saved tabs after potential login (no delay needed since loadChatData no longer creates tabs)
         await this.loadSavedTabs();
+
+        // Check for updates on startup (with a delay to not interfere with initial loading)
+        setTimeout(() => {
+            this.checkForUpdates();
+        }, 3000);
     }
 
     async loadSettings() {
@@ -1870,6 +1875,10 @@ class ModDeckApp {
         document.getElementById('console-btn').addEventListener('click', () => {
             ipcRenderer.send('toggle-dev-tools');
         });
+
+        // Update system
+        document.getElementById('update-btn').addEventListener('click', () => this.handleUpdate());
+        document.getElementById('dismiss-update').addEventListener('click', () => this.dismissUpdateBanner());
     }
 
     setupIpcListeners() {
@@ -2074,6 +2083,162 @@ class ModDeckApp {
         } catch (error) {
             console.error('Error loading chat data:', error);
         }
+    }
+
+    // Update system methods
+    async checkForUpdates() {
+        try {
+            console.log('Checking for updates...');
+            const updateInfo = await ipcRenderer.invoke('check-changelog-updates');
+
+            if (updateInfo.hasUpdate) {
+                this.showUpdateBanner(updateInfo);
+                this.showNotification(`Update available: v${updateInfo.latestVersion}`, 'info');
+                console.log('Update available:', updateInfo);
+            } else {
+                console.log('No updates available');
+            }
+
+            return updateInfo;
+        } catch (error) {
+            console.error('Failed to check for updates:', error);
+            this.showNotification('Failed to check for updates', 'error');
+            return null;
+        }
+    }
+
+    showUpdateBanner(updateInfo) {
+        const banner = document.getElementById('update-banner');
+        const updateText = document.getElementById('update-text');
+
+        if (banner && updateText) {
+            updateText.textContent = `Update available: v${updateInfo.latestVersion}`;
+            banner.classList.remove('hidden');
+        }
+    }
+
+    dismissUpdateBanner() {
+        const banner = document.getElementById('update-banner');
+        if (banner) {
+            banner.classList.add('hidden');
+        }
+    }
+
+    async handleUpdate() {
+        try {
+            const updateInfo = await ipcRenderer.invoke('check-changelog-updates');
+
+            if (!updateInfo.hasUpdate) {
+                this.showNotification('No updates available', 'info');
+                return;
+            }
+
+            // Show loading state
+            const updateBtn = document.getElementById('update-btn');
+            const originalText = updateBtn.textContent;
+            updateBtn.textContent = 'Updating...';
+            updateBtn.disabled = true;
+
+            // Download and show changelog
+            const changelogContent = await ipcRenderer.invoke('download-changelog', updateInfo.changelogUrl);
+
+            // Ask user for confirmation
+            const confirmed = await this.showUpdateConfirmation(updateInfo, changelogContent);
+
+            if (confirmed) {
+                this.showNotification('Applying update...', 'info');
+
+                // Apply the update
+                const result = await ipcRenderer.invoke('apply-changelog-update', updateInfo);
+
+                if (result.success) {
+                    this.showNotification(`Update applied successfully! ${result.filesProcessed} files updated.`, 'success');
+                    this.dismissUpdateBanner();
+
+                    // Show restart notification
+                    setTimeout(() => {
+                        this.showRestartNotification();
+                    }, 2000);
+                } else {
+                    this.showNotification(`Update failed: ${result.errors.join(', ')}`, 'error');
+                }
+            }
+
+            // Reset button
+            updateBtn.textContent = originalText;
+            updateBtn.disabled = false;
+
+        } catch (error) {
+            console.error('Update failed:', error);
+            this.showNotification(`Update failed: ${error.message}`, 'error');
+
+            // Reset button
+            const updateBtn = document.getElementById('update-btn');
+            updateBtn.textContent = 'Update';
+            updateBtn.disabled = false;
+        }
+    }
+
+    async showUpdateConfirmation(updateInfo, changelogContent) {
+        return new Promise((resolve) => {
+            // Create confirmation modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+                    <h3>Update Available: v${updateInfo.latestVersion}</h3>
+                    <div style="margin: 20px 0;">
+                        <h4>Changelog:</h4>
+                        <div style="background: #1f1f23; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">
+${changelogContent}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="cancel-update" class="btn btn-secondary">Cancel</button>
+                        <button id="confirm-update" class="btn btn-primary">Apply Update</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            document.getElementById('confirm-update').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resolve(true);
+            });
+
+            document.getElementById('cancel-update').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resolve(false);
+            });
+        });
+    }
+
+    showRestartNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'restart-notification';
+        notification.innerHTML = `
+            <div style="background: #9147ff; color: white; padding: 15px; border-radius: 8px; position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 300px;">
+                <h4 style="margin: 0 0 10px 0;">Update Complete!</h4>
+                <p style="margin: 0 0 15px 0;">Please restart ModDeck to apply all changes.</p>
+                <button id="restart-now" style="background: white; color: #9147ff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Restart Now
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        document.getElementById('restart-now').addEventListener('click', () => {
+            ipcRenderer.send('window-close');
+        });
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 10000);
     }
 }
 

@@ -2,9 +2,11 @@ const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
+const VersionManager = require('./src/version-manager');
 
 let mainWindow;
 let settingsWindow;
+let versionManager;
 
 // Configuration and data management
 const DATA_DIR = path.join(__dirname, 'data');
@@ -320,10 +322,14 @@ function createSettingsWindow() {
 
 // App event handlers
 app.whenReady().then(() => {
+  // Initialize version manager
+  versionManager = new VersionManager();
+
   createWindow();
 
-  // Check for updates on startup
+  // Check for updates on startup using our custom version manager
   if (process.env.NODE_ENV !== 'development') {
+    // Use both electron-updater and our custom version manager
     autoUpdater.checkForUpdatesAndNotify();
   }
 }).catch(error => {
@@ -481,6 +487,15 @@ ipcMain.handle('get-window-bounds', () => {
 
 ipcMain.handle('check-for-updates', async () => {
   try {
+    // Use our custom version manager first
+    if (versionManager) {
+      const customUpdate = await versionManager.checkForUpdates();
+      if (customUpdate.hasUpdate) {
+        return customUpdate;
+      }
+    }
+
+    // Fallback to electron-updater
     const result = await autoUpdater.checkForUpdates();
     return {
       hasUpdate: result?.updateInfo?.version !== app.getVersion(),
@@ -495,6 +510,55 @@ ipcMain.handle('check-for-updates', async () => {
       latestVersion: app.getVersion(),
       error: error.message
     };
+  }
+});
+
+// Add new IPC handler for custom update system
+ipcMain.handle('check-changelog-updates', async () => {
+  try {
+    if (!versionManager) {
+      throw new Error('Version manager not initialized');
+    }
+    return await versionManager.checkForUpdates();
+  } catch (error) {
+    console.error('Changelog update check failed:', error);
+    throw error;
+  }
+});
+
+// Add IPC handler for applying custom updates
+ipcMain.handle('apply-changelog-update', async (event, updateInfo) => {
+  try {
+    if (!versionManager) {
+      throw new Error('Version manager not initialized');
+    }
+
+    const result = await versionManager.applyUpdate(updateInfo);
+
+    if (result.success) {
+      // Notify main window about successful update
+      if (mainWindow) {
+        mainWindow.webContents.send('update-applied', result);
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to apply update:', error);
+    throw error;
+  }
+});
+
+// Add IPC handler for downloading changelog content
+ipcMain.handle('download-changelog', async (event, changelogUrl) => {
+  try {
+    if (!versionManager) {
+      throw new Error('Version manager not initialized');
+    }
+    return await versionManager.downloadChangelog(changelogUrl);
+  } catch (error) {
+    console.error('Failed to download changelog:', error);
+    throw error;
   }
 });
 
