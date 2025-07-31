@@ -1,0 +1,18 @@
+the idea is to make an external app or widget for the streamer fugu_fps and his moderators, so they can have a new chat without having it inside google but outisde and always on top of the other page/screen
+i want it to be able to have all the message of the chat, with roles, badges, chat user color and everything you can take like the normal twitch chat, but with some twitst
+i want to be able to 'trier' the messages by different criteria like:
+- by user
+- by role
+- by keyword
+
+i want to have a tab not in the main chat but seprated, so the moderators/streamer can see all their recent mention like all the message with their user in it.
+
+i want to make it so the streamer/moderators can login with their twitch account so they can later wen implemented ban user / to user directly from the app/widget
+
+idk if this is possible
+the only thing i dont want is to make the app a .exe make it so it dosent look like a program but more like a widget that can be placed on the desktop or in a corner of the screen, always on top.
+and add a little button to minimize it to the taskbar or close it.
+and anotehr button to open the settings where you can change the size, position, and other preferences of the widget.
+and another one that will be linekd to the github release thing so when the button is clicked it will check if there is a new update and if there is the widget will auto update
+
+i also want it to be like it store the data for 24hours and then delete it, so it doesn't take too much space on the computer, and when i mean data its like chat data so message and not the user data like login or password or preferences, and settings.

@@ -1,0 +1,20 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#9147FF"/>
+  <circle cx="32" cy="32" r="28" fill="#0F0F23"/>
+
+  <!-- Chat bubbles -->
+  <path d="M18 22C18 19.7909 19.7909 18 22 18H38C40.2091 18 42 19.7909 42 22V30C42 32.2091 40.2091 34 38 34H28L22 38V34H22C19.7909 34 18 32.2091 18 30V22Z" fill="#9147FF"/>
+
+  <!-- Smaller chat bubble -->
+  <path d="M26 32C26 30.3431 27.3431 29 29 29H41C42.6569 29 44 30.3431 44 32V38C44 39.6569 42.6569 41 41 41H35L31 44V41H29C27.3431 41 26 39.6569 26 38V32Z" fill="#00F5FF"/>
+
+  <!-- Chat lines -->
+  <rect x="22" y="22" width="14" height="2" fill="#0F0F23" rx="1"/>
+  <rect x="22" y="26" width="10" height="2" fill="#0F0F23" rx="1"/>
+  <rect x="22" y="30" width="8" height="2" fill="#0F0F23" rx="1"/>
+
+  <!-- Notification dot -->
+  <circle cx="48" cy="16" r="6" fill="#F13C20"/>
+  <text x="48" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="white">!</text>
+</svg>

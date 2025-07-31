@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModDeck Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f0f23;
+            color: #efeff1;
+            padding: 20px;
+        }
+
+        .settings-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .settings-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .settings-header h1 {
+            color: #9147ff;
+            margin-bottom: 8px;
+        }
+
+        .settings-section {
+            background: #1f1f23;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #2f2f35;
+        }
+
+        .settings-section h3 {
+            color: #efeff1;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .setting-item {
+            margin-bottom: 15px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #adadb8;
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0f0f23;
+            border: 1px solid #2f2f35;
+            border-radius: 4px;
+            color: #efeff1;
+            font-size: 13px;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: #9147ff;
+        }
+
+        .setting-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .setting-checkbox input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #9147ff;
+        }
+
+        .setting-range {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .range-input {
+            flex: 1;
+            height: 6px;
+            background: #2f2f35;
+            outline: none;
+            border-radius: 3px;
+            appearance: none;
+        }
+
+        .range-input::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #9147ff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .range-value {
+            min-width: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #adadb8;
+        }
+
+        .settings-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #9147ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #7c3aed;
+        }
+
+        .btn-secondary {
+            background: #464649;
+            color: #efeff1;
+        }
+
+        .btn-secondary:hover {
+            background: #5a5a5d;
+        }
+
+        .update-section {
+            text-align: center;
+        }
+
+        .update-info {
+            background: rgba(145, 71, 255, 0.1);
+            border: 1px solid rgba(145, 71, 255, 0.3);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .version-info {
+            font-size: 12px;
+            color: #adadb8;
+            margin-bottom: 10px;
+        }
+
+        .keyword-list {
+            background: #0f0f23;
+            border: 1px solid #2f2f35;
+            border-radius: 4px;
+            padding: 8px;
+            min-height: 80px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .keyword-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            margin-bottom: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .keyword-remove {
+            background: #f13c20;
+            color: white;
+            border: none;
+            border-radius: 2px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .keyword-add {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .keyword-input {
+            flex: 1;
+            padding: 6px 8px;
+            background: #0f0f23;
+            border: 1px solid #2f2f35;
+            border-radius: 4px;
+            color: #efeff1;
+            font-size: 12px;
+        }
+
+        .keyword-add-btn {
+            background: #9147ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="settings-header">
+            <h1>ModDeck Settings</h1>
+            <p>Configure your ModDeck experience</p>
+        </div>
+
+        <!-- Window Settings -->
+        <div class="settings-section">
+            <h3>Window Settings</h3>
+
+            <div class="setting-item">
+                <label class="setting-label">Window Width</label>
+                <div class="setting-range">
+                    <input type="range" id="window-width" class="range-input" min="350" max="800" value="400">
+                    <span id="width-value" class="range-value">400px</span>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-label">Window Height</label>
+                <div class="setting-range">
+                    <input type="range" id="window-height" class="range-input" min="400" max="1000" value="600">
+                    <span id="height-value" class="range-value">600px</span>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="always-on-top">
+                    <span>Always on top</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Twitch Settings -->
+        <div class="settings-section">
+            <h3>Twitch Settings</h3>
+
+            <div class="setting-item">
+                <label class="setting-label">Default Channel</label>
+                <input type="text" id="twitch-channel" class="setting-input" placeholder="Enter channel name...">
+            </div>
+        </div>
+
+        <!-- Chat Settings -->
+        <div class="settings-section">
+            <h3>Chat Settings</h3>
+
+            <div class="setting-item">
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="show-badges">
+                    <span>Show user badges</span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="show-colors">
+                    <span>Show username colors</span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="enable-mentions">
+                    <span>Enable mention detection</span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-label">Mention Keywords</label>
+                <div class="keyword-list" id="keyword-list">
+                    <!-- Keywords will be populated here -->
+                </div>
+                <div class="keyword-add">
+                    <input type="text" id="keyword-input" class="keyword-input" placeholder="Add keyword...">
+                    <button id="add-keyword" class="keyword-add-btn">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Settings -->
+        <div class="settings-section">
+            <h3>Theme Settings</h3>
+
+            <div class="setting-item">
+                <label class="setting-label">Theme</label>
+                <select id="theme-select" class="setting-input">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light (Coming Soon)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Update Settings -->
+        <div class="settings-section">
+            <h3>Update Settings</h3>
+
+            <div class="setting-item">
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="auto-update">
+                    <span>Check for updates automatically</span>
+                </label>
+            </div>
+
+            <div class="setting-item update-section">
+                <div class="update-info">
+                    <div class="version-info">
+                        Current Version: <span id="current-version">2.0.0</span>
+                    </div>
+                    <button id="check-updates" class="btn btn-primary">Check for Updates</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="settings-actions">
+            <button id="reset-settings" class="btn btn-secondary">Reset to Defaults</button>
+            <button id="save-settings" class="btn btn-primary">Save Settings</button>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        class SettingsManager {
+            constructor() {
+                this.settings = {};
+                this.mentionKeywords = ['fugu_fps'];
+                this.init();
+            }
+
+            async init() {
+                await this.loadSettings();
+                this.setupEventListeners();
+                this.updateUI();
+            }
+
+            async loadSettings() {
+                try {
+                    this.settings = await ipcRenderer.invoke('get-settings');
+                    this.mentionKeywords = this.settings.mentionKeywords || ['fugu_fps'];
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                }
+            }
+
+            setupEventListeners() {
+                // Window size sliders
+                document.getElementById('window-width').addEventListener('input', (e) => {
+                    document.getElementById('width-value').textContent = e.target.value + 'px';
+                });
+
+                document.getElementById('window-height').addEventListener('input', (e) => {
+                    document.getElementById('height-value').textContent = e.target.value + 'px';
+                });
+
+                // Keyword management
+                document.getElementById('add-keyword').addEventListener('click', () => {
+                    this.addKeyword();
+                });
+
+                document.getElementById('keyword-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.addKeyword();
+                    }
+                });
+
+                // Update check
+                document.getElementById('check-updates').addEventListener('click', () => {
+                    this.checkForUpdates();
+                });
+
+                // Save and reset
+                document.getElementById('save-settings').addEventListener('click', () => {
+                    this.saveSettings();
+                });
+
+                document.getElementById('reset-settings').addEventListener('click', () => {
+                    this.resetSettings();
+                });
+            }
+
+            updateUI() {
+                // Window settings
+                document.getElementById('window-width').value = this.settings.windowSize?.width || 400;
+                document.getElementById('window-height').value = this.settings.windowSize?.height || 600;
+                document.getElementById('width-value').textContent = (this.settings.windowSize?.width || 400) + 'px';
+                document.getElementById('height-value').textContent = (this.settings.windowSize?.height || 600) + 'px';
+                document.getElementById('always-on-top').checked = this.settings.alwaysOnTop || false;
+
+                // Twitch settings
+                document.getElementById('twitch-channel').value = this.settings.twitchChannel || '';
+
+                // Chat settings
+                document.getElementById('show-badges').checked = this.settings.filterSettings?.showBadges !== false;
+                document.getElementById('show-colors').checked = this.settings.filterSettings?.showColors !== false;
+                document.getElementById('enable-mentions').checked = this.settings.filterSettings?.enableMentions !== false;
+
+                // Theme settings
+                document.getElementById('theme-select').value = this.settings.theme || 'dark';
+
+                // Update settings
+                document.getElementById('auto-update').checked = this.settings.autoUpdate !== false;
+
+                this.updateKeywordList();
+            }
+
+            updateKeywordList() {
+                const keywordList = document.getElementById('keyword-list');
+                keywordList.innerHTML = '';
+
+                this.mentionKeywords.forEach((keyword, index) => {
+                    const keywordItem = document.createElement('div');
+                    keywordItem.className = 'keyword-item';
+                    keywordItem.innerHTML = `
+                        <span>${keyword}</span>
+                        <button class="keyword-remove" onclick="settingsManager.removeKeyword(${index})">×</button>
+                    `;
+                    keywordList.appendChild(keywordItem);
+                });
+            }
+
+            addKeyword() {
+                const input = document.getElementById('keyword-input');
+                const keyword = input.value.trim();
+
+                if (keyword && !this.mentionKeywords.includes(keyword)) {
+                    this.mentionKeywords.push(keyword);
+                    this.updateKeywordList();
+                    input.value = '';
+                }
+            }
+
+            removeKeyword(index) {
+                this.mentionKeywords.splice(index, 1);
+                this.updateKeywordList();
+            }
+
+            async saveSettings() {
+                const newSettings = {
+                    windowSize: {
+                        width: parseInt(document.getElementById('window-width').value),
+                        height: parseInt(document.getElementById('window-height').value)
+                    },
+                    alwaysOnTop: document.getElementById('always-on-top').checked,
+                    twitchChannel: document.getElementById('twitch-channel').value,
+                    filterSettings: {
+                        showBadges: document.getElementById('show-badges').checked,
+                        showColors: document.getElementById('show-colors').checked,
+                        enableMentions: document.getElementById('enable-mentions').checked
+                    },
+                    theme: document.getElementById('theme-select').value,
+                    autoUpdate: document.getElementById('auto-update').checked,
+                    mentionKeywords: this.mentionKeywords
+                };
+
+                try {
+                    await ipcRenderer.invoke('save-settings', newSettings);
+                    this.showNotification('Settings saved successfully!');
+
+                    // Close settings window after a delay
+                    setTimeout(() => {
+                        window.close();
+                    }, 1000);
+                } catch (error) {
+                    console.error('Error saving settings:', error);
+                    this.showNotification('Error saving settings!', true);
+                }
+            }
+
+            resetSettings() {
+                if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                    this.settings = {
+                        windowSize: { width: 400, height: 600 },
+                        windowPosition: { x: 100, y: 100 },
+                        alwaysOnTop: true,
+                        autoUpdate: true,
+                        twitchChannel: '',
+                        filterSettings: {
+                            showBadges: true,
+                            showColors: true,
+                            enableMentions: true
+                        },
+                        theme: 'dark'
+                    };
+                    this.mentionKeywords = ['fugu_fps'];
+                    this.updateUI();
+                }
+            }
+
+            async checkForUpdates() {
+                const button = document.getElementById('check-updates');
+                button.textContent = 'Checking...';
+                button.disabled = true;
+
+                try {
+                    const result = await ipcRenderer.invoke('check-for-updates');
+
+                    if (result.hasUpdate) {
+                        this.showNotification(`Update available: v${result.latestVersion}`);
+                    } else {
+                        this.showNotification('You have the latest version!');
+                    }
+                } catch (error) {
+                    this.showNotification('Error checking for updates!', true);
+                } finally {
+                    button.textContent = 'Check for Updates';
+                    button.disabled = false;
+                }
+            }
+
+            showNotification(message, isError = false) {
+                // Create notification element
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${isError ? '#f13c20' : '#00ad03'};
+                    color: white;
+                    padding: 12px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    z-index: 1000;
+                    animation: slideIn 0.3s ease;
+                `;
+                notification.textContent = message;
+
+                document.body.appendChild(notification);
+
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        }
+
+        // Initialize settings manager
+        let settingsManager;
+        document.addEventListener('DOMContentLoaded', () => {
+            settingsManager = new SettingsManager();
+        });
+    </script>
+</body>
+</html>

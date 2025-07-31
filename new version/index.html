@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModDeck v2</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Custom Title Bar -->
+        <div class="title-bar">
+            <div class="title-bar-left">
+                <img src="assets/icon.svg" alt="ModDeck" class="app-icon">
+                <span class="app-title">ModDeck v2</span>
+            </div>
+            <div class="title-bar-controls">
+                <button id="profile-btn" class="control-btn profile-btn hidden" title="Account">
+                    <img id="profile-avatar" src="" alt="Profile" class="profile-avatar">
+                </button>
+                <button id="console-btn" class="control-btn" title="Developer Console">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6Z"/>
+                    </svg>
+                </button>
+                <button id="settings-btn" class="control-btn" title="Settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                    </svg>
+                </button>
+                <button id="pin-btn" class="control-btn active" title="Always on top">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z"/>
+                    </svg>
+                </button>
+                <button id="minimize-btn" class="control-btn" title="Minimize">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20,14H4V10H20"/>
+                    </svg>
+                </button>
+                <button id="close-btn" class="control-btn close" title="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Update Notification -->
+        <div id="update-banner" class="update-banner hidden">
+            <span id="update-text">Update available!</span>
+            <button id="update-btn" class="update-action-btn">Update</button>
+            <button id="dismiss-update" class="dismiss-btn">×</button>
+        </div>
+
+        <!-- Twitch Login Section -->
+        <div id="login-section" class="login-section">
+            <div class="login-container">
+                <div class="login-header">
+                    <h3>Connect Your Twitch Account</h3>
+                    <p>Login to send messages and access subscriber features</p>
+                </div>
+                <div class="login-controls">
+                    <input type="text" id="twitch-username" placeholder="Your Twitch Username" />
+                    <input type="password" id="twitch-oauth" placeholder="OAuth Token (oauth:xxxxx)" />
+                    <button id="login-btn" class="primary-btn">Login to Twitch</button>
+                    <button id="logout-btn" class="secondary-btn hidden">Logout</button>
+                </div>
+                <div class="login-help">
+                    <p><small>Get your OAuth token from <a href="https://twitchapps.com/tmi/" target="_blank">twitchapps.com/tmi</a></small></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Channel Tabs -->
+        <div class="tabs-container">
+            <div class="main-tabs">
+                <button id="chat-tab" class="main-tab active" data-tab="chat">Chat</button>
+                <button id="mentions-tab" class="main-tab" data-tab="mentions">
+                    Mentions
+                    <span id="mentions-count" class="mention-counter hidden">0</span>
+                </button>
+            </div>
+            <div class="channel-tabs-wrapper" id="chat-tab-content">
+                <div class="tabs-header">
+                    <div id="tabs-list" class="tabs-list">
+                        <!-- Tabs will be added dynamically -->
+                    </div>
+                    <button id="add-tab-btn" class="add-tab-btn" title="Add new channel">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Channel Modal -->
+        <div id="add-channel-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add New Channel</h3>
+                    <button id="close-modal" class="close-modal-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="new-channel-input" placeholder="Enter channel name (e.g., fugu_fps)" />
+                    <div class="modal-actions">
+                        <button id="add-channel-btn" class="primary-btn">Add Channel</button>
+                        <button id="cancel-add-channel" class="secondary-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="connection-status">
+            <div id="connection-indicator" class="status-indicator disconnected"></div>
+            <div id="logged-in-user" class="logged-in-user hidden">
+                <span>Logged in as: <strong id="username-display"></strong></span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chat Tab Content -->
+            <div id="chat-content" class="tab-content active">
+                <div id="tabs-content" class="tabs-content">
+                    <!-- Tab content will be added dynamically -->
+                    <div id="no-channels" class="no-channels">
+                        <div class="no-channels-content">
+                            <h3>Welcome to ModDeck v2!</h3>
+                            <p>Add your first channel to get started</p>
+                            <button id="add-first-channel" class="primary-btn">Add Channel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mentions Tab Content -->
+            <div id="mentions-content" class="tab-content">
+                <div class="mentions-panel">
+                    <div class="mentions-header">
+                        <h3 data-translate="Mentions & Keywords">Mentions & Keywords</h3>
+                        <button id="clear-mentions" class="secondary-btn" data-translate="Clear All">Clear All</button>
+                    </div>
+                    <div id="mentions-list" class="mentions-list">
+                        <!-- Mentions will be added dynamically -->
+                        <div id="no-mentions" class="no-mentions">
+                            <p><span data-translate="No mentions yet">No mentions yet</span>. <span data-translate="Keywords">Keywords</span>: <span id="current-keywords">fugu_fps, moddeck</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            </div>
+
+            <!-- Chat Tab Content -->
+        <!-- Profile Logout Modal -->
+        <div id="profile-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Account</h3>
+                    <button id="close-profile-modal" class="close-modal-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="profile-info">
+                        <img id="profile-modal-avatar" src="" alt="Profile" class="profile-modal-avatar">
+                        <div class="profile-details">
+                            <h4 id="profile-modal-username">Username</h4>
+                            <p>Connected to Twitch</p>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="logout-confirm-btn" class="danger-btn">Logout</button>
+                        <button id="cancel-logout" class="secondary-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button id="close-settings" class="close-modal-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h4>Appearance</h4>
+                        <label class="setting-item">
+                            <span>Theme</span>
+                            <select id="theme-select">
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                                <option value="purple">Purple</option>
+                                <option value="blue">Blue</option>
+                            </select>
+                        </label>
+                        <label class="setting-item">
+                            <span>Language</span>
+                            <select id="language-select">
+                                <option value="en">English</option>
+                                <option value="fr">Français</option>
+                                <option value="es">Español</option>
+                                <option value="de">Deutsch</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Chat Settings</h4>
+                        <label class="setting-item">
+                            <input type="checkbox" id="auto-scroll">
+                            <span>Auto-scroll chat</span>
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="show-timestamps">
+                            <span>Show timestamps</span>
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="highlight-mentions">
+                            <span>Highlight mentions</span>
+                        </label>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Mention Keywords</h4>
+                        <div class="mention-settings">
+                            <input type="text" id="mention-keywords" placeholder="Enter keywords separated by commas" />
+                            <small>These words will trigger mention notifications</small>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Shortcuts</h4>
+                        <label class="setting-item">
+                            <input type="checkbox" id="create-desktop-shortcut">
+                            <span>Create desktop shortcut</span>
+                        </label>
+                        <label class="setting-item">
+                            <input type="checkbox" id="add-to-start-menu">
+                            <span>Add to Start Menu</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="save-settings" class="primary-btn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span id="message-count">0 total messages</span>
+            </div>
+            <div class="status-right">
+                <span id="connection-time" class="hidden">Connected: 00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

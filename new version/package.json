@@ -1,0 +1,56 @@
+{
+  "name": "moddeck-v2",
+  "version": "2.0.0",
+  "description": "ModDeck v2 - Advanced Twitch Chat Widget for Streamers and Moderators",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build-portable": "electron-builder --dir",
+    "build-zip": "electron-builder --win zip --linux tar.gz --mac zip",
+    "pack": "electron-builder --dir"
+  },
+  "author": "fugu_fps",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "tmi.js": "^1.8.5",
+    "electron-updater": "^6.1.7",
+    "node-fetch": "^2.7.0"
+  },
+  "build": {
+    "appId": "com.fugufps.moddeck-v2",
+    "productName": "ModDeck v2",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer.js",
+      "style.css",
+      "index.html",
+      "assets/**/*",
+      "src/**/*"
+    ],
+    "win": {
+      "target": "zip",
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": "tar.gz",
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": "zip",
+      "icon": "assets/icon.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "JaysonPasquier",
+      "repo": "ModDeck"
+    }
+  }
+}

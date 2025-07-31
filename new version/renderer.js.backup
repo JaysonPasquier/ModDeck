@@ -1,0 +1,1016 @@
+const { ipcRenderer } = require('electron');
+const tmi = require('tmi.js');
+
+class ModDeckApp {
+    constructor() {
+        this.client = null;
+        this.isConnected = false;
+        this.currentChannel = '';
+        this.settings = {};
+        this.chatData = { messages: [], mentions: [] };
+        this.messageCount = 0;
+        this.connectionStartTime = null;
+        this.connectionTimer = null;
+        this.mentionKeywords = [];
+
+        // Enhanced features from your chat widget
+        this.userColors = new Map(); // For consistent user colors
+        this.colorIndex = 0;
+        this.colors = ['color-1', 'color-2', 'color-3', 'color-4', 'color-5',
+                      'color-6', 'color-7', 'color-8', 'color-9', 'color-10'];
+
+        // Cache for 7TV emotes
+        this.sevenTVEmotes = new Map();
+        this.globalSevenTVEmotes = new Map();
+
+        this.init();
+    }
+
+    async init() {
+        await this.loadSettings();
+        await this.loadChatData();
+        await this.loadSevenTVEmotes(); // Load 7TV emotes
+        this.setupEventListeners();
+        this.setupIpcListeners();
+        this.updateUI();
+        this.startConnectionTimer();
+    }    async loadSettings() {
+        try {
+            this.settings = await ipcRenderer.invoke('get-settings');
+            this.updateMentionKeywords();
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    }
+
+    async loadChatData() {
+        try {
+            this.chatData = await ipcRenderer.invoke('get-chat-data');
+            this.updateChatDisplay();
+            this.updateMentionsDisplay();
+            this.updateMessageCount();
+        } catch (error) {
+            console.error('Error loading chat data:', error);
+        }
+    }
+
+    async saveChatData() {
+        try {
+            await ipcRenderer.invoke('save-chat-data', this.chatData);
+        } catch (error) {
+            console.error('Error saving chat data:', error);
+        }
+    }
+
+    updateMentionKeywords() {
+        // Set up mention keywords (streamer name, mod names, etc.)
+        this.mentionKeywords = [
+            'fugu_fps', // Add the streamer name
+            // Add other keywords that should trigger mentions
+        ];
+
+        // Load from settings if available
+        if (this.settings.mentionKeywords && Array.isArray(this.settings.mentionKeywords)) {
+            this.mentionKeywords = [...this.settings.mentionKeywords];
+        }
+    }
+
+    async loadSevenTVEmotes() {
+        try {
+            console.log('🚀 Loading 7TV emotes...');
+
+            // Load global 7TV emotes
+            console.log('📡 Fetching global emotes...');
+            const globalResponse = await fetch('https://7tv.io/v3/emote-sets/global');
+            console.log('🌐 Global response:', globalResponse.status, globalResponse.statusText);
+
+            if (globalResponse.ok) {
+                const globalData = await globalResponse.json();
+                console.log('📦 Global data received:', globalData);
+
+                if (globalData.emotes && Array.isArray(globalData.emotes)) {
+                    console.log(`📊 Global emotes found: ${globalData.emotes.length}`);
+
+                    globalData.emotes.forEach((emote, index) => {
+                        if (emote.name && emote.data && emote.data.host && emote.data.host.files) {
+                            const urls = emote.data.host.files.map(file => `//${emote.data.host.url}/${file.name}`);
+
+                            this.globalSevenTVEmotes.set(emote.name, {
+                                id: emote.id,
+                                name: emote.name,
+                                urls: urls
+                            });
+                        }
+                    });
+                }
+            }
+
+            // Load channel-specific 7TV emotes for fugu_fps
+            console.log('📡 Fetching channel emotes for fugu_fps...');
+            const setResponse = await fetch('https://7tv.io/v3/emote-sets/01GEG2EPE80006SAE3KT92JGK5');
+            console.log('📦 Set response:', setResponse.status, setResponse.statusText);
+
+            if (setResponse.ok) {
+                const setData = await setResponse.json();
+                console.log('📦 Set data received:', setData);
+
+                if (setData.emotes && Array.isArray(setData.emotes)) {
+                    console.log(`📊 Channel emotes found: ${setData.emotes.length}`);
+
+                    setData.emotes.forEach((emote, index) => {
+                        if (emote.name && emote.data && emote.data.host && emote.data.host.files) {
+                            const urls = emote.data.host.files.map(file => `//${emote.data.host.url}/${file.name}`);
+
+                            this.sevenTVEmotes.set(emote.name, {
+                                id: emote.id,
+                                name: emote.name,
+                                urls: urls
+                            });
+                        }
+                    });
+                }
+            }
+
+            console.log(`✅ 7TV emotes loaded: ${this.sevenTVEmotes.size} channel + ${this.globalSevenTVEmotes.size} global`);
+
+        } catch (error) {
+            console.error('💥 Error loading 7TV emotes:', error);
+        }
+    }
+
+    setupEventListeners() {
+        // Title bar controls
+        document.getElementById('close-btn').addEventListener('click', () => {
+            ipcRenderer.invoke('close-app');
+        });
+
+        document.getElementById('minimize-btn').addEventListener('click', () => {
+            ipcRenderer.invoke('minimize-app');
+        });
+
+        document.getElementById('pin-btn').addEventListener('click', async () => {
+            const isOnTop = await ipcRenderer.invoke('toggle-always-on-top');
+            const pinBtn = document.getElementById('pin-btn');
+            pinBtn.classList.toggle('active', isOnTop);
+        });
+
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            ipcRenderer.invoke('open-settings');
+        });
+
+        // Connection controls
+        document.getElementById('connect-btn').addEventListener('click', () => {
+            this.toggleConnection();
+        });
+
+        document.getElementById('channel-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.toggleConnection();
+            }
+        });
+
+        // Tab navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchTab(btn.dataset.tab);
+            });
+        });
+
+        // Filters
+        document.getElementById('user-filter').addEventListener('input', () => {
+            this.applyFilters();
+        });
+
+        document.getElementById('keyword-filter').addEventListener('input', () => {
+            this.applyFilters();
+        });
+
+        // Role checkboxes
+        document.querySelectorAll('.role-checkbox input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.applyFilters();
+            });
+        });
+
+        document.getElementById('clear-filters').addEventListener('click', () => {
+            this.clearFilters();
+        });
+
+        // Clear mentions
+        document.getElementById('clear-mentions').addEventListener('click', () => {
+            this.clearMentions();
+        });
+
+        // Update controls
+        document.getElementById('update-btn')?.addEventListener('click', () => {
+            this.downloadUpdate();
+        });
+
+        document.getElementById('dismiss-update')?.addEventListener('click', () => {
+            this.dismissUpdate();
+        });
+
+        // Load channel from settings
+        if (this.settings.twitchChannel) {
+            document.getElementById('channel-input').value = this.settings.twitchChannel;
+        }
+    }
+
+    setupIpcListeners() {
+        // Update notifications
+        ipcRenderer.on('update-available', () => {
+            this.showUpdateBanner('Update available!', true);
+        });
+
+        ipcRenderer.on('update-downloaded', () => {
+            this.showUpdateBanner('Update downloaded! Restart to apply.', true);
+        });
+
+        ipcRenderer.on('update-error', (event, error) => {
+            this.showUpdateBanner(`Update error: ${error}`, false);
+        });
+    }
+
+    async toggleConnection() {
+        if (this.isConnected) {
+            this.disconnect();
+        } else {
+            const channel = document.getElementById('channel-input').value.trim();
+            if (channel) {
+                await this.connect(channel);
+            }
+        }
+    }
+
+    async connect(channel) {
+        try {
+            // Clean channel name
+            this.currentChannel = channel.toLowerCase().replace('#', '');
+
+            // Create TMI client
+            this.client = new tmi.Client({
+                connection: { reconnect: true },
+                channels: [this.currentChannel]
+            });
+
+            // Set up event listeners
+            this.client.on('connected', () => {
+                this.onConnected();
+            });
+
+            this.client.on('disconnected', () => {
+                this.onDisconnected();
+            });
+
+            this.client.on('message', (channel, userstate, message, self) => {
+                this.onMessage(channel, userstate, message, self);
+            });
+
+            this.client.on('error', (error) => {
+                console.error('TMI Error:', error);
+                this.updateConnectionStatus('Error connecting', false);
+            });
+
+            // Connect
+            await this.client.connect();
+
+        } catch (error) {
+            console.error('Connection error:', error);
+            this.updateConnectionStatus('Connection failed', false);
+        }
+    }
+
+    disconnect() {
+        if (this.client) {
+            this.client.disconnect();
+            this.client = null;
+        }
+        this.onDisconnected();
+    }
+
+    onConnected() {
+        this.isConnected = true;
+        this.connectionStartTime = Date.now();
+        this.updateConnectionStatus(`Connected to ${this.currentChannel}`, true);
+
+        // Save channel to settings
+        this.settings.twitchChannel = this.currentChannel;
+        ipcRenderer.invoke('save-settings', { twitchChannel: this.currentChannel });
+
+        // Update connect button
+        const connectBtn = document.getElementById('connect-btn');
+        connectBtn.textContent = 'Disconnect';
+        connectBtn.classList.add('disconnect');
+    }
+
+    onDisconnected() {
+        this.isConnected = false;
+        this.connectionStartTime = null;
+        this.updateConnectionStatus('Disconnected', false);
+
+        // Update connect button
+        const connectBtn = document.getElementById('connect-btn');
+        connectBtn.textContent = 'Connect';
+        connectBtn.classList.remove('disconnect');
+    }
+
+    onMessage(channel, userstate, message, self) {
+        if (self) return; // Ignore own messages
+
+        console.log('🔍 Raw userstate:', userstate); // Debug log
+        console.log('🎨 User color from userstate:', userstate.color); // Debug color specifically
+
+        const messageData = {
+            id: Date.now() + Math.random(),
+            timestamp: Date.now(),
+            channel: channel,
+            username: userstate['display-name'] || userstate.username,
+            message: message,
+            color: userstate.color || null,
+            badges: this.parseBadges(userstate.badges),
+            userType: this.getUserType(userstate),
+            userId: userstate['user-id'],
+            emotes: userstate.emotes,
+            userColor: userstate.color // Store original user color
+        };
+
+        console.log('🎯 Message data color:', messageData.userColor); // Debug stored color
+
+        // Add to messages
+        this.chatData.messages.push(messageData);
+        this.messageCount++;
+
+        // Check for mentions
+        if (this.isMention(message)) {
+            this.chatData.mentions.push({
+                ...messageData,
+                mentionType: 'keyword'
+            });
+            this.updateMentionCount();
+        }
+
+        // Limit messages to prevent memory issues
+        if (this.chatData.messages.length > 1000) {
+            this.chatData.messages = this.chatData.messages.slice(-800);
+        }
+
+        // Update displays
+        this.addMessageToChat(messageData);
+        this.updateMessageCount();
+        this.saveChatData();
+    }
+
+    parseBadges(badges) {
+        const badgeData = {};
+
+        if (!badges) return badgeData;
+
+        // Parse Twitch badges
+        for (const [type, version] of Object.entries(badges)) {
+            switch (type) {
+                case 'broadcaster':
+                    badgeData.broadcaster = true;
+                    badgeData.broadcasterVersion = version;
+                    break;
+                case 'moderator':
+                    badgeData.moderator = true;
+                    badgeData.moderatorVersion = version;
+                    break;
+                case 'vip':
+                    badgeData.vip = true;
+                    badgeData.vipVersion = version;
+                    break;
+                case 'subscriber':
+                    badgeData.subscriber = true;
+                    badgeData.subscriberVersion = version;
+                    break;
+                case 'predictions':
+                    badgeData.predictions = true;
+                    badgeData.predictionsVersion = version;
+                    break;
+                case 'bits':
+                    badgeData.bits = true;
+                    badgeData.bitsVersion = version;
+                    break;
+                case 'sub-gifter':
+                    badgeData.subGifter = true;
+                    badgeData.subGifterVersion = version;
+                    break;
+                case 'sub-gift-leader':
+                    badgeData.subGiftLeader = true;
+                    badgeData.subGiftLeaderVersion = version;
+                    break;
+                case 'bits-leader':
+                    badgeData.bitsLeader = true;
+                    badgeData.bitsLeaderVersion = version;
+                    break;
+                case 'clips-leader':
+                    badgeData.clipsLeader = true;
+                    badgeData.clipsLeaderVersion = version;
+                    break;
+                case 'premium':
+                case 'prime':
+                    badgeData.premium = true;
+                    badgeData.premiumVersion = version;
+                    break;
+                case 'turbo':
+                    badgeData.turbo = true;
+                    badgeData.turboVersion = version;
+                    break;
+                case 'verified':
+                    badgeData.verified = true;
+                    badgeData.verifiedVersion = version;
+                    break;
+                case 'no-audio':
+                case 'no_audio':
+                    badgeData.noAudio = true;
+                    badgeData.noAudioVersion = version;
+                    break;
+                case 'no-video':
+                case 'no_video':
+                    badgeData.noVideo = true;
+                    badgeData.noVideoVersion = version;
+                    break;
+                case 'dj':
+                    badgeData.dj = true;
+                    badgeData.djVersion = version;
+                    break;
+                case 'ambassador':
+                    badgeData.ambassador = true;
+                    badgeData.ambassadorVersion = version;
+                    break;
+                case 'anonymous-cheerer':
+                    badgeData.anonymousCheerer = true;
+                    badgeData.anonymousCheererVersion = version;
+                    break;
+                case 'artist-badge':
+                    badgeData.artist = true;
+                    badgeData.artistVersion = version;
+                    break;
+                default:
+                    // Handle special event badges
+                    if (type.includes('game-award') || type.includes('twitchcon') ||
+                        type.includes('recap') || type.includes('zevent') ||
+                        type.includes('pixel-heart') || type.includes('arcane') ||
+                        type.includes('lol') || type.includes('rplace') ||
+                        type.includes('glhf') || type.includes('glitchcon') ||
+                        type.includes('share-the-love') || type.includes('subtember') ||
+                        type.includes('raging-wolf') || type.includes('gone-bananas') ||
+                        type.includes('speedons') || type.includes('elden-ring')) {
+                        badgeData.special = true;
+                        badgeData.specialType = type;
+                        badgeData.specialVersion = version;
+                    }
+                    break;
+            }
+        }
+
+        return badgeData;
+    }    getUserType(userstate) {
+        if (userstate.badges) {
+            if (userstate.badges.broadcaster) return 'broadcaster';
+            if (userstate.badges.moderator) return 'moderator';
+            if (userstate.badges.vip) return 'vip';
+            if (userstate.badges.subscriber) return 'subscriber';
+        }
+        return 'viewer';
+    }
+
+    parseSevenTVEmotes(message) {
+        if (!message) return message;
+
+        console.log('🔍 Parsing 7TV emotes for:', message);
+
+        // Split message into words and process each word individually
+        const words = message.split(/(\s+)/); // Keep spaces in the array
+
+        for (let i = 0; i < words.length; i++) {
+            let word = words[i].trim();
+            if (!word) continue; // Skip empty spaces
+
+            let emoteFound = false;
+            let emoteData = null;
+
+            // Search in channel emotes first (priority)
+            if (this.sevenTVEmotes.has(word)) {
+                emoteData = this.sevenTVEmotes.get(word);
+                emoteFound = true;
+                console.log(`✅ Channel emote found: ${word}`, emoteData);
+            }
+            // Search in global emotes if not found in channel
+            else if (this.globalSevenTVEmotes.has(word)) {
+                emoteData = this.globalSevenTVEmotes.get(word);
+                emoteFound = true;
+                console.log(`✅ Global emote found: ${word}`, emoteData);
+            }
+
+            if (emoteFound && emoteData && emoteData.urls && Array.isArray(emoteData.urls)) {
+                // Find appropriate URL (priority to larger sizes)
+                const imageUrl = emoteData.urls.find(url => url.includes('2x.webp')) ||
+                                emoteData.urls.find(url => url.includes('1x.webp')) ||
+                                emoteData.urls[0];
+
+                if (imageUrl) {
+                    const fullUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
+                    const emoteImg = `<img class="emote-7tv" src="${fullUrl}" alt="${word}" title="${word}">`;
+                    words[i] = words[i].replace(word, emoteImg);
+                    console.log(`🎨 Emote replaced: "${word}" → ${fullUrl}`);
+                }
+            }
+        }
+
+        return words.join('');
+    }
+
+    parseTwitchEmotes(message, emoteData) {
+        if (!message || !emoteData) return message;
+
+        console.log('🟣 Parsing Twitch emotes for:', message);
+        console.log('🟣 Twitch emote data:', emoteData);
+
+        let result = message;
+
+        // Parse Twitch emotes from IRC tags
+        // Format: emote_id:start_pos-end_pos,start_pos-end_pos/emote_id:start_pos-end_pos
+        const emoteEntries = Object.entries(emoteData);
+
+        // Collect all emote positions to process in reverse order
+        const emoteReplacements = [];
+
+        emoteEntries.forEach(([emoteId, positions]) => {
+            if (!positions || !Array.isArray(positions)) return;
+
+            positions.forEach(position => {
+                const start = position['start-position'];
+                const end = position['end-position'];
+
+                if (typeof start === 'number' && typeof end === 'number') {
+                    const emoteName = message.substring(start, end + 1);
+                    emoteReplacements.push({
+                        start,
+                        end: end + 1,
+                        emoteId,
+                        emoteName
+                    });
+                }
+            });
+        });
+
+        // Sort by start position in descending order to replace from right to left
+        emoteReplacements.sort((a, b) => b.start - a.start);
+
+        // Replace emotes
+        emoteReplacements.forEach(replacement => {
+            const { start, end, emoteId, emoteName } = replacement;
+            const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/2.0`;
+            const emoteImg = `<img class="emote-twitch" src="${emoteUrl}" alt="${emoteName}" title="${emoteName}">`;
+
+            result = result.substring(0, start) + emoteImg + result.substring(end);
+            console.log(`🟣 Twitch emote replaced: "${emoteName}" → ${emoteUrl}`);
+        });
+
+        return result;
+    }
+
+    getUserColor(username) {
+        if (!this.userColors.has(username)) {
+            this.userColors.set(username, this.colors[this.colorIndex % this.colors.length]);
+            this.colorIndex++;
+        }
+        return this.userColors.get(username);
+    }
+
+    getUserBadgeClass(badges) {
+        if (!badges) return '';
+
+        if (badges.moderator) return 'moderator';
+        if (badges.vip) return 'vip';
+        if (badges.subscriber) return 'subscriber';
+        if (badges.predictions) return 'predictions';
+        if (badges.premium) return 'premium';
+
+        return '';
+    }
+
+    createBadgeDisplay(badges) {
+        let badgeDisplay = '';
+        if (!badges) return badgeDisplay;
+
+        // Broadcaster badge
+        if (badges.broadcaster) {
+            badgeDisplay += `<img class="badge-image" src="https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1" alt="Broadcaster" title="Broadcaster">`;
+        }
+
+        // Moderator badge
+        if (badges.moderator) {
+            badgeDisplay += `<img class="badge-image" src="https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1" alt="Moderator" title="Moderator">`;
+        }
+
+        // VIP badge
+        if (badges.vip) {
+            badgeDisplay += `<img class="badge-image" src="https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/1" alt="VIP" title="VIP">`;
+        }
+
+        // Subscriber badge (with custom images for fugu_fps)
+        if (badges.subscriber) {
+            const subVersion = badges.subscriberVersion || '0';
+            let subBadgeFile = '';
+
+            // Map versions to file names
+            switch(subVersion) {
+                case '0':
+                case '1':
+                    subBadgeFile = 'images/1-mois.png';
+                    break;
+                case '2':
+                    subBadgeFile = 'images/2-mois.png';
+                    break;
+                case '3':
+                    subBadgeFile = 'images/3-mois.png';
+                    break;
+                case '6':
+                    subBadgeFile = 'images/6-mois.png';
+                    break;
+                case '9':
+                    subBadgeFile = 'images/9-mois.png';
+                    break;
+                case '12':
+                    subBadgeFile = 'images/1-an.png';
+                    break;
+                case '18':
+                    subBadgeFile = 'images/18-mois.png';
+                    break;
+                case '24':
+                    subBadgeFile = 'images/2-ans.png';
+                    break;
+                default:
+                    subBadgeFile = 'images/1-mois.png';
+            }
+
+            badgeDisplay += `<img class="badge-image" src="${subBadgeFile}" alt="Subscriber ${subVersion}" title="Abonné ${subVersion} mois" onerror="this.src='https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/1'">`;
+        }
+
+        // Predictions badge
+        if (badges.predictions) {
+            const predVersion = badges.predictionsVersion || '1';
+            let predBadgeFile = '';
+
+            switch(predVersion) {
+                case '1':
+                case 'blue-1':
+                    predBadgeFile = 'images/predi-1.png';
+                    break;
+                case '2':
+                case 'blue-2':
+                    predBadgeFile = 'images/predi-2.png';
+                    break;
+                default:
+                    predBadgeFile = 'images/predi-1.png';
+            }
+
+            badgeDisplay += `<img class="badge-image" src="${predBadgeFile}" alt="Prediction ${predVersion}" title="Prédiction ${predVersion}" onerror="this.src='https://static-cdn.jtvnw.net/badges/v1/73e8b446-2ca8-4dc7-912c-e35fc11d1c4e/1'">`;
+        }
+
+        // Bits badge
+        if (badges.bits) {
+            const bitsVersion = badges.bitsVersion || '1';
+            let bitsBadgeFile = 'images/cheer-1.png'; // Default
+
+            const bitsAmount = parseInt(bitsVersion);
+            if (bitsAmount >= 5000000) bitsBadgeFile = 'images/cheer-5000000.png';
+            else if (bitsAmount >= 1000000) bitsBadgeFile = 'images/cheer-1000000.png';
+            else if (bitsAmount >= 500000) bitsBadgeFile = 'images/cheer-500000.png';
+            else if (bitsAmount >= 100000) bitsBadgeFile = 'images/cheer-100000.png';
+            else if (bitsAmount >= 50000) bitsBadgeFile = 'images/cheer-50000.png';
+            else if (bitsAmount >= 25000) bitsBadgeFile = 'images/cheer-25000.png';
+            else if (bitsAmount >= 10000) bitsBadgeFile = 'images/cheer-10000.png';
+            else if (bitsAmount >= 5000) bitsBadgeFile = 'images/cheer-5000.png';
+            else if (bitsAmount >= 1000) bitsBadgeFile = 'images/cheer-1000.png';
+            else if (bitsAmount >= 100) bitsBadgeFile = 'images/cheer-100.png';
+
+            badgeDisplay += `<img class="badge-image" src="${bitsBadgeFile}" alt="Bits ${bitsVersion}" title="Bits ${bitsVersion}">`;
+        }
+
+        // Premium/Prime badge
+        if (badges.premium) {
+            badgeDisplay += `<img class="badge-image" src="images/prime.png" alt="Prime" title="Prime Gaming" onerror="this.src='https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/1'">`;
+        }
+
+        // Add other badges as needed...
+
+        return badgeDisplay;
+    }
+
+    isMention(message) {
+        const lowerMessage = message.toLowerCase();
+        return this.mentionKeywords.some(keyword =>
+            lowerMessage.includes(keyword.toLowerCase())
+        );
+    }
+
+    addMessageToChat(messageData) {
+        const chatContainer = document.getElementById('chat-container');
+
+        // Remove welcome message if present
+        const welcomeMessage = chatContainer.querySelector('.welcome-message');
+        if (welcomeMessage) {
+            welcomeMessage.remove();
+        }
+
+        const messageElement = this.createMessageElement(messageData);
+        chatContainer.appendChild(messageElement);
+
+        // Auto-scroll to bottom
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Apply current filters
+        this.applyFilters();
+    }
+
+    createMessageElement(messageData) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message';
+        messageDiv.dataset.userId = messageData.userId;
+        messageDiv.dataset.userType = messageData.userType;
+        messageDiv.dataset.username = messageData.username.toLowerCase();
+        messageDiv.dataset.message = messageData.message.toLowerCase();
+
+        // Highlight mentions
+        if (this.isMention(messageData.message)) {
+            messageDiv.classList.add('highlight');
+        }
+
+        // Process message with emotes
+        let processedMessage = messageData.message;
+
+        // Parse Twitch emotes first (native priority)
+        if (messageData.emotes) {
+            processedMessage = this.parseTwitchEmotes(processedMessage, messageData.emotes);
+        }
+
+        // Then parse 7TV emotes on remaining text
+        processedMessage = this.parseSevenTVEmotes(processedMessage);
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'message-header';
+
+        // Create badges display
+        const badgesDiv = document.createElement('div');
+        badgesDiv.className = 'message-badges';
+        badgesDiv.innerHTML = this.createBadgeDisplay(messageData.badges);
+
+        // Username with color
+        const usernameSpan = document.createElement('span');
+        usernameSpan.className = 'username';
+
+        // Determine color - priority to user's chosen color
+        console.log(`🎨 Processing color for ${messageData.username}: ${messageData.userColor}`);
+
+        if (messageData.userColor && messageData.userColor.trim() !== '') {
+            // Use user's chosen color
+            usernameSpan.style.color = messageData.userColor;
+            console.log(`✅ Using user color: ${messageData.userColor} for ${messageData.username}`);
+        } else {
+            // Use fallback color system
+            const fallbackColor = this.getUserColor(messageData.username);
+            usernameSpan.classList.add(fallbackColor);
+            console.log(`🎲 Using fallback color ${fallbackColor} for ${messageData.username}`);
+        }
+
+        // Add badge-based class
+        const badgeClass = this.getUserBadgeClass(messageData.badges);
+        if (badgeClass) {
+            usernameSpan.classList.add(badgeClass);
+        }
+
+        usernameSpan.textContent = messageData.username;        // Timestamp
+        const timestampSpan = document.createElement('span');
+        timestampSpan.className = 'timestamp';
+        timestampSpan.textContent = new Date(messageData.timestamp).toLocaleTimeString();
+
+        headerDiv.appendChild(badgesDiv);
+        headerDiv.appendChild(usernameSpan);
+        headerDiv.appendChild(timestampSpan);
+
+        // Message content with emotes
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.innerHTML = processedMessage; // Use innerHTML to render emote images
+
+        messageDiv.appendChild(headerDiv);
+        messageDiv.appendChild(contentDiv);
+
+        return messageDiv;
+    }
+
+    applyFilters() {
+        const userFilter = document.getElementById('user-filter').value.toLowerCase();
+        const keywordFilter = document.getElementById('keyword-filter').value.toLowerCase();
+
+        // Get selected roles from checkboxes
+        const selectedRoles = [];
+        document.querySelectorAll('.role-checkbox input[type="checkbox"]:checked').forEach(checkbox => {
+            selectedRoles.push(checkbox.value);
+        });
+
+        const messages = document.querySelectorAll('.chat-message');
+
+        messages.forEach(message => {
+            let show = true;
+
+            if (userFilter && !message.dataset.username.includes(userFilter)) {
+                show = false;
+            }
+
+            if (keywordFilter && !message.dataset.message.includes(keywordFilter)) {
+                show = false;
+            }
+
+            // Check if message user type is in selected roles
+            if (selectedRoles.length > 0 && !selectedRoles.includes(message.dataset.userType)) {
+                show = false;
+            }
+
+            message.style.display = show ? 'flex' : 'none';
+        });
+    }
+
+    clearFilters() {
+        document.getElementById('user-filter').value = '';
+        document.getElementById('keyword-filter').value = '';
+
+        // Check all role checkboxes
+        document.querySelectorAll('.role-checkbox input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+
+        this.applyFilters();
+    }
+
+    switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-tab`);
+        });
+    }
+
+    updateChatDisplay() {
+        const chatContainer = document.getElementById('chat-container');
+        chatContainer.innerHTML = '';
+
+        if (this.chatData.messages.length === 0) {
+            chatContainer.innerHTML = `
+                <div class="welcome-message">
+                    <h3>Welcome to ModDeck v2!</h3>
+                    <p>Connect to a Twitch channel to start viewing chat messages.</p>
+                </div>
+            `;
+        } else {
+            this.chatData.messages.forEach(message => {
+                const messageElement = this.createMessageElement(message);
+                chatContainer.appendChild(messageElement);
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+
+    updateMentionsDisplay() {
+        const mentionsContainer = document.getElementById('mentions-container');
+        mentionsContainer.innerHTML = '';
+
+        if (this.chatData.mentions.length === 0) {
+            mentionsContainer.innerHTML = `
+                <div class="empty-mentions">
+                    <p>No mentions yet. Mentions will appear here when someone mentions you in chat.</p>
+                </div>
+            `;
+        } else {
+            this.chatData.mentions.slice(-50).reverse().forEach(mention => {
+                const mentionElement = this.createMentionElement(mention);
+                mentionsContainer.appendChild(mentionElement);
+            });
+        }
+
+        this.updateMentionCount();
+    }
+
+    createMentionElement(mentionData) {
+        const mentionDiv = document.createElement('div');
+        mentionDiv.className = 'mention-item';
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'mention-time';
+        timeDiv.textContent = new Date(mentionData.timestamp).toLocaleString();
+
+        const messageElement = this.createMessageElement(mentionData);
+
+        mentionDiv.appendChild(timeDiv);
+        mentionDiv.appendChild(messageElement);
+
+        return mentionDiv;
+    }
+
+    updateMentionCount() {
+        const mentionBadge = document.getElementById('mention-count');
+        const count = this.chatData.mentions.length;
+
+        if (count > 0) {
+            mentionBadge.textContent = count > 99 ? '99+' : count.toString();
+            mentionBadge.classList.remove('hidden');
+        } else {
+            mentionBadge.classList.add('hidden');
+        }
+    }
+
+    clearMentions() {
+        this.chatData.mentions = [];
+        this.updateMentionsDisplay();
+        this.saveChatData();
+    }
+
+    updateConnectionStatus(text, connected) {
+        const indicator = document.getElementById('connection-indicator');
+        const statusText = document.getElementById('connection-text');
+
+        indicator.className = `status-indicator ${connected ? 'connected' : 'disconnected'}`;
+        statusText.textContent = text;
+
+        // Show/hide connection time
+        const connectionTime = document.getElementById('connection-time');
+        if (connected && this.connectionStartTime) {
+            connectionTime.classList.remove('hidden');
+        } else {
+            connectionTime.classList.add('hidden');
+        }
+    }
+
+    updateMessageCount() {
+        const messageCountElement = document.getElementById('message-count');
+        messageCountElement.textContent = `${this.messageCount} messages`;
+    }
+
+    startConnectionTimer() {
+        this.connectionTimer = setInterval(() => {
+            if (this.isConnected && this.connectionStartTime) {
+                const elapsed = Date.now() - this.connectionStartTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                const connectionTime = document.getElementById('connection-time');
+                connectionTime.textContent = `Connected: ${timeString}`;
+            }
+        }, 1000);
+    }
+
+    updateUI() {
+        // Set initial always-on-top state
+        const pinBtn = document.getElementById('pin-btn');
+        pinBtn.classList.toggle('active', this.settings.alwaysOnTop);
+    }
+
+    showUpdateBanner(text, showButton) {
+        const banner = document.getElementById('update-banner');
+        const textElement = document.getElementById('update-text');
+        const button = document.getElementById('update-btn');
+
+        textElement.textContent = text;
+        button.style.display = showButton ? 'block' : 'none';
+        banner.classList.remove('hidden');
+    }
+
+    dismissUpdate() {
+        const banner = document.getElementById('update-banner');
+        banner.classList.add('hidden');
+    }
+
+    async downloadUpdate() {
+        try {
+            await ipcRenderer.invoke('download-update');
+            this.showUpdateBanner('Downloading update...', false);
+        } catch (error) {
+            this.showUpdateBanner(`Update failed: ${error.message}`, false);
+        }
+    }
+
+    async checkForUpdates() {
+        try {
+            const result = await ipcRenderer.invoke('check-for-updates');
+            if (result.hasUpdate) {
+                this.showUpdateBanner(`Update available: v${result.latestVersion}`, true);
+            }
+        } catch (error) {
+            console.error('Update check failed:', error);
+        }
+    }
+}
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.modDeckApp = new ModDeckApp();
+});
