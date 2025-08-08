@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# ModDeck v2 Launcher Script
+# ModDeck v3 Launcher Script
 # This script runs ModDeck without needing to build an executable
 
-echo "Starting ModDeck v2..."
+echo "Starting ModDeck v3..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -27,5 +27,5 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Run ModDeck
-echo "Launching ModDeck v2..."
+echo "Launching ModDeck v3..."
 npm start

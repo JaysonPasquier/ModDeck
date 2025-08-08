@@ -1,7 +1,7 @@
 {
-  "name": "moddeck-v2",
-  "version": "1.0.0",
-  "description": "ModDeck v2 - Advanced Twitch Chat Widget for Streamers and Moderators",
+  "name": "moddeck-v3",
+  "version": "3.0.0",
+  "description": "ModDeck v3 - Advanced Twitch Chat Widget with Comprehensive Moderation Tools",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -22,8 +22,8 @@
     "node-fetch": "^2.7.0"
   },
   "build": {
-    "appId": "com.fugufps.moddeck-v2",
-    "productName": "ModDeck v2",
+    "appId": "com.fugufps.moddeck-v3",
+    "productName": "ModDeck v3",
     "directories": {
       "output": "dist"
     },

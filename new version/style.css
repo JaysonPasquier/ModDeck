@@ -467,6 +467,18 @@ body {
     margin-right: 2px;
 }
 
+/* Recurrent message indicator */
+.recurrent-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: #ffd166;
+    background: rgba(255, 209, 102, 0.1);
+    border: 1px solid rgba(255, 209, 102, 0.3);
+    border-radius: 10px;
+}
+
 .emote-7tv {
     max-height: 28px;
     height: auto;
@@ -1614,4 +1626,223 @@ body {
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+/* Context menu for messages */
+.md-context-menu {
+    position: fixed;
+    z-index: 10002;
+    background: #1f1f23;
+    color: #efeff1;
+    border: 1px solid #2f2f35;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    min-width: 160px;
+}
+
+.md-context-item {
+    background: transparent;
+    color: #efeff1;
+    border: none;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.md-context-item:hover:not(.disabled) {
+    background: #2a2a2d;
+}
+
+.md-context-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Moderation Log Panel */
+.modlog-panel {
+    padding: 15px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.modlog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #2f2f35;
+}
+
+.modlog-header h3 {
+    color: #efeff1;
+    margin: 0;
+}
+
+.modlog-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.modlog-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modlog-item {
+    background: #2a2a2d;
+    border: 1px solid #464649;
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.2s;
+}
+
+.modlog-item:hover {
+    background: #3a3a3d;
+    border-color: #9146ff;
+}
+
+.modlog-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.modlog-action {
+    font-weight: 600;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modlog-action.delete {
+    background: #e91e63;
+    color: white;
+}
+
+.modlog-action.timeout {
+    background: #ff9800;
+    color: white;
+}
+
+.modlog-action.ban {
+    background: #f44336;
+    color: white;
+}
+
+.modlog-action.unban {
+    background: #4caf50;
+    color: white;
+}
+
+.modlog-time {
+    font-size: 11px;
+    color: #adadb8;
+}
+
+.modlog-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 5px;
+}
+
+.modlog-channel {
+    font-size: 11px;
+    color: #9146ff;
+    background: #464649;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.modlog-target {
+    font-size: 13px;
+    color: #efeff1;
+    font-weight: 500;
+}
+
+.modlog-moderator {
+    font-size: 11px;
+    color: #adadb8;
+}
+
+.modlog-reason {
+    font-size: 12px;
+    color: #adadb8;
+    font-style: italic;
+    margin-top: 3px;
+}
+
+.no-modlog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #adadb8;
+    text-align: center;
+}
+
+.no-modlog p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Message moderation states */
+.message-deleted {
+    opacity: 0.5 !important;
+    background: rgba(233, 30, 99, 0.1) !important;
+    border-left: 3px solid #e91e63 !important;
+}
+
+.user-timed-out {
+    opacity: 0.6 !important;
+    background: rgba(255, 152, 0, 0.1) !important;
+    border-left: 3px solid #ff9800 !important;
+}
+
+.user-banned {
+    opacity: 0.4 !important;
+    background: rgba(244, 67, 54, 0.1) !important;
+    border-left: 3px solid #f44336 !important;
+}
+
+.deleted-badge,
+.timeout-badge,
+.ban-badge {
+    font-size: 10px !important;
+    font-weight: bold !important;
+    text-transform: uppercase !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    margin-left: 8px !important;
+    letter-spacing: 0.5px !important;
+}
+
+.deleted-badge {
+    background: #e91e63 !important;
+    color: white !important;
+}
+
+.timeout-badge {
+    background: #ff9800 !important;
+    color: white !important;
+}
+
+.ban-badge {
+    background: #f44336 !important;
+    color: white !important;
 }

@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const VersionManager = require('./src/version-manager');
+const fetch = require('node-fetch');
 
 let mainWindow;
 let settingsWindow;
@@ -32,6 +33,10 @@ const DEFAULT_SETTINGS = {
   showTimestamps: true,
   highlightMentions: true,
   mentionKeywords: 'fugu_fps,moddeck',
+  helix: {
+    clientId: '',
+    accessToken: ''
+  },
   openTabs: [],
   activeTab: null
 };
@@ -483,6 +488,164 @@ ipcMain.handle('get-window-bounds', () => {
     return mainWindow.getBounds();
   }
   return null;
+});
+
+// ========== Twitch Helix Moderation (Main process) ==========
+let helixCache = {
+  selfUserId: null,
+  loginToId: new Map()
+};
+
+function getHelixHeaders() {
+  const settings = loadSettings();
+  if (!settings.helix?.clientId || !settings.helix?.accessToken) {
+    throw new Error('Missing Helix credentials');
+  }
+  return {
+    'Client-ID': settings.helix.clientId,
+    'Authorization': `Bearer ${settings.helix.accessToken}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+async function helixGetSelfUserId() {
+  if (helixCache.selfUserId) return helixCache.selfUserId;
+  const headers = getHelixHeaders();
+  const res = await fetch('https://api.twitch.tv/helix/users', { headers });
+  if (!res.ok) throw new Error(`Helix get self failed: ${res.status}`);
+  const data = await res.json();
+  const id = data?.data?.[0]?.id;
+  if (!id) throw new Error('Unable to resolve self user id');
+  helixCache.selfUserId = id;
+  return id;
+}
+
+async function helixGetUserIdByLogin(login) {
+  if (helixCache.loginToId.has(login)) return helixCache.loginToId.get(login);
+  const headers = getHelixHeaders();
+  const url = `https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`Helix get user failed: ${res.status}`);
+  const data = await res.json();
+  const id = data?.data?.[0]?.id;
+  if (!id) throw new Error(`User not found: ${login}`);
+  helixCache.loginToId.set(login, id);
+  return id;
+}
+
+async function ensureIds(channelLogin) {
+  const broadcasterId = await helixGetUserIdByLogin(channelLogin);
+  const moderatorId = await helixGetSelfUserId();
+  return { broadcasterId, moderatorId };
+}
+
+ipcMain.handle('mod-delete-message', async (event, { channelLogin, messageId }) => {
+  try {
+    const { broadcasterId, moderatorId } = await ensureIds(channelLogin);
+    const headers = getHelixHeaders();
+    // Use Chat Delete endpoint (v1): DELETE /moderation/chat?broadcaster_id&moderator_id&message_id
+    const url = `https://api.twitch.tv/helix/moderation/chat?broadcaster_id=${broadcasterId}&moderator_id=${moderatorId}&message_id=${encodeURIComponent(messageId)}`;
+    const res = await fetch(url, { method: 'DELETE', headers });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix delete failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix delete error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('mod-timeout', async (event, { channelLogin, targetLogin, seconds, reason }) => {
+  try {
+    const { broadcasterId, moderatorId } = await ensureIds(channelLogin);
+    const targetId = await helixGetUserIdByLogin(targetLogin);
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/moderation/bans?broadcaster_id=${broadcasterId}&moderator_id=${moderatorId}`;
+    const body = {
+      data: {
+        user_id: targetId,
+        duration: seconds,
+        reason: reason || 'ModDeck timeout'
+      }
+    };
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix timeout failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix timeout error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('mod-ban', async (event, { channelLogin, targetLogin, reason }) => {
+  try {
+    const { broadcasterId, moderatorId } = await ensureIds(channelLogin);
+    const targetId = await helixGetUserIdByLogin(targetLogin);
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/moderation/bans?broadcaster_id=${broadcasterId}&moderator_id=${moderatorId}`;
+    const body = {
+      data: {
+        user_id: targetId,
+        reason: reason || 'ModDeck ban'
+      }
+    };
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix ban failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix ban error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('mod-unban', async (event, { channelLogin, targetLogin }) => {
+  try {
+    const { broadcasterId, moderatorId } = await ensureIds(channelLogin);
+    const targetId = await helixGetUserIdByLogin(targetLogin);
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/moderation/bans?broadcaster_id=${broadcasterId}&moderator_id=${moderatorId}&user_id=${targetId}`;
+    const res = await fetch(url, { method: 'DELETE', headers });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix unban failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix unban error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Validate Helix token/scopes
+ipcMain.handle('validate-helix', async () => {
+  try {
+    const settings = loadSettings();
+    if (!settings.helix?.accessToken) {
+      return { ok: false, error: 'No access token set' };
+    }
+    const res = await fetch('https://id.twitch.tv/oauth2/validate', {
+      headers: { Authorization: `OAuth ${settings.helix.accessToken}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: data?.message || `HTTP ${res.status}` };
+    }
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 });
 
 ipcMain.handle('check-for-updates', async () => {

@@ -1,5 +1,5 @@
 @echo off
-REM ModDeck v2 Launcher Script for Windows
+REM ModDeck v3 Launcher Script for Windows
 REM This script runs ModDeck without needing to build an executable
 
 REM Set up logging - all output will go to moddeck-log.txt
@@ -7,11 +7,11 @@ set LOGFILE=%~dp0moddeck-log.txt
 
 REM Clear previous log and start logging
 echo =============================================== > "%LOGFILE%"
-echo ModDeck v2 Launch Log - %date% %time% >> "%LOGFILE%"
+echo ModDeck v3 Launch Log - %date% %time% >> "%LOGFILE%"
 echo =============================================== >> "%LOGFILE%"
 
-echo Starting ModDeck v2...
-echo Starting ModDeck v2... >> "%LOGFILE%"
+echo Starting ModDeck v3...
+echo Starting ModDeck v3... >> "%LOGFILE%"
 
 REM Check if Node.js is installed
 echo Checking Node.js installation... >> "%LOGFILE%"
@@ -74,8 +74,8 @@ if %errorlevel% neq 0 (
 echo Dependencies installed successfully! >> "%LOGFILE%"
 
 REM Run ModDeck
-echo Launching ModDeck v2...
-echo Launching ModDeck v2... >> "%LOGFILE%"
+echo Launching ModDeck v3...
+echo Launching ModDeck v3... >> "%LOGFILE%"
 npm start >> "%LOGFILE%" 2>&1
 
 echo =============================================== >> "%LOGFILE%"

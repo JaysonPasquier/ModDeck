@@ -25,6 +25,14 @@ class ModDeckApp {
         // Global mentions system
         this.allMentions = [];
 
+        // Recurrent/spam detection structures per channel
+        // Maps channelName -> { events: Array<{ key: string, time: number }>, counts: Map<string, number> }
+        this.recurrenceTrackers = new Map();
+
+        // Moderation tracking
+        this.moderationLog = [];
+        this.showModLog = false;
+
         // Localization
         this.translations = {
             en: {
@@ -635,7 +643,10 @@ class ModDeckApp {
             highlightedMessage = highlightedMessage.replace(regex, `<span class="mention-keyword">${keyword}</span>`);
         });
 
-        const timeStr = messageObj.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        // Ensure timestamp is a Date
+        let ts = messageObj.timestamp;
+        const tsDate = ts instanceof Date ? ts : new Date(ts);
+        const timeStr = tsDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         mentionDiv.innerHTML = `
             <div class="mention-header">
@@ -660,7 +671,7 @@ class ModDeckApp {
         this.renderMentionsList();
     }
 
-    // Switch between main tabs (Chat/Mentions)
+    // Switch between main tabs (Chat/Mentions/ModLog)
     switchMainTab(tabName) {
         // Update tab buttons
         document.querySelectorAll('.main-tab').forEach(tab => {
@@ -677,6 +688,14 @@ class ModDeckApp {
         // Show/hide channel tabs wrapper
         const channelTabsWrapper = document.getElementById('chat-tab-content');
         channelTabsWrapper.style.display = tabName === 'chat' ? 'block' : 'none';
+
+        // Special handling for modlog tab
+        if (tabName === 'modlog') {
+            this.showModLog = true;
+            this.updateModLogUI();
+        } else {
+            this.showModLog = false;
+        }
     }
 
     async reconnectAllChannelsWithAuth() {
@@ -802,7 +821,11 @@ class ModDeckApp {
                 };
             }
 
-            const client = new tmi.Client(clientOptions);
+            const client = new tmi.Client({
+                options: { debug: false },
+                connection: { secure: true, reconnect: true },
+                ...clientOptions
+            });
 
             // Set up event listeners
             client.on('connected', () => {
@@ -825,6 +848,52 @@ class ModDeckApp {
             client.on('reconnect', () => {
                 console.log(`Reconnecting to ${channelName}...`);
                 this.updateChannelStatus(channelName, 'connecting');
+            });
+
+            // Moderation/diagnostics listeners
+            client.on('notice', (channel, msgid, message) => {
+                console.log('NOTICE:', channel, msgid, message);
+                // Surface common moderation notices
+                if (msgid && /ban|timeout|unban|delete/i.test(msgid)) {
+                    this.showNotification(message, 'info');
+                }
+            });
+
+            client.on('messagedeleted', (channel, username, deletedMessage, userstate) => {
+                console.log('Message deleted:', { channel, username, deletedMessage, userstate });
+                this.showNotification(`Message deleted for ${username}`, 'success');
+
+                // Mark message as deleted in UI if we can find it
+                if (userstate?.targetMsgId) {
+                    const messageElement = document.querySelector(`[data-message-id="${userstate.targetMsgId}"]`);
+                    if (messageElement) {
+                        this.markMessageAsDeleted(messageElement);
+                    }
+                }
+            });
+
+            client.on('timeout', (channel, username, reason, duration) => {
+                console.log('Timeout:', { channel, username, duration, reason });
+                this.showNotification(`Timed out ${username} (${Math.floor((duration||0)/60)}m)`, 'success');
+
+                // Mark user as timed out in UI
+                this.markUserAsTimedOut(channelName, username, duration || 0);
+            });
+
+            client.on('ban', (channel, username, reason) => {
+                console.log('Ban:', { channel, username, reason });
+                this.showNotification(`Banned ${username}`, 'success');
+
+                // Mark user as banned in UI
+                this.markUserAsBanned(channelName, username);
+            });
+
+            client.on('unban', (channel, username) => {
+                console.log('Unban:', { channel, username });
+                this.showNotification(`Unbanned ${username}`, 'success');
+
+                // Remove ban indicators from user's messages
+                this.markUserAsUnbanned(channelName, username);
             });
 
             // Connect
@@ -1142,8 +1211,32 @@ class ModDeckApp {
             color: this.getUserColor(userstate),
             isMention: this.checkIfMention(message),
             role: this.getUserRole(userstate),
-            isSelf: self
+            isSelf: self,
+            recurrentCount: 0
         };
+
+        // Update recurrent/spam tracking
+        try {
+            const tracker = this.getRecurrenceTracker(channelName);
+            const now = Date.now();
+            const windowMs = 60 * 1000; // 60 seconds window
+            const key = this.normalizeMessageText(message);
+
+            // Expire old events
+            while (tracker.events.length > 0 && (now - tracker.events[0].time) > windowMs) {
+                const expired = tracker.events.shift();
+                const oldCount = (tracker.counts.get(expired.key) || 1) - 1;
+                if (oldCount <= 0) tracker.counts.delete(expired.key); else tracker.counts.set(expired.key, oldCount);
+            }
+
+            // Add current event
+            tracker.events.push({ key, time: now });
+            const newCount = (tracker.counts.get(key) || 0) + 1;
+            tracker.counts.set(key, newCount);
+            messageObj.recurrentCount = newCount;
+        } catch (e) {
+            console.warn('Recurrent tracking error:', e);
+        }
 
         // Add to channel messages
         channelData.messages.push(messageObj);
@@ -1562,6 +1655,9 @@ class ModDeckApp {
         messageEl.className = `chat-message ${messageObj.isMention ? 'mention' : ''}`;
         messageEl.dataset.username = messageObj.username.toLowerCase();
         messageEl.dataset.role = messageObj.role;
+        if (messageObj.userstate?.id) {
+            messageEl.dataset.messageId = messageObj.userstate.id;
+        }
 
         // Enable text selection
         messageEl.style.userSelect = 'text';
@@ -1583,18 +1679,601 @@ class ModDeckApp {
             ? messageObj.color
             : '';
 
+        // Recurrent badge if the message was seen multiple times recently
+        const recurrentBadge = (messageObj.recurrentCount && messageObj.recurrentCount >= 3)
+            ? `<span class="recurrent-badge" title="Similar messages recently">Recurrent x${messageObj.recurrentCount}</span>`
+            : '';
+
         messageEl.innerHTML = `
             ${timestamp}
             <div class="message-content">
                 <div class="user-info">
                     <div class="badges">${badgesHtml}</div>
                     <span class="username" style="${userColor ? `color: ${userColor}` : ''}">${messageObj.username}</span>
+                    ${recurrentBadge}
                 </div>
                 <span class="message-text">${processedMessage}</span>
             </div>
         `;
 
+        // Context menu for moderation actions
+        messageEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.openMessageContextMenu(e, messageObj);
+        });
+
         return messageEl;
+    }
+
+    // ===== Moderation & Context Menu =====
+    openMessageContextMenu(event, messageObj) {
+        // Remove any existing menu
+        document.querySelectorAll('.md-context-menu').forEach(m => m.remove());
+
+        const menu = document.createElement('div');
+        menu.className = 'md-context-menu';
+
+        const channelName = messageObj.channel;
+        const username = messageObj.username;
+        const realMsgId = messageObj?.userstate?.id || null;
+
+        const addItem = (label, handler, disabled = false) => {
+            const item = document.createElement('button');
+            item.textContent = label;
+            item.className = 'md-context-item';
+            if (disabled) {
+                item.disabled = true;
+                item.classList.add('disabled');
+            }
+            item.addEventListener('click', async () => {
+                try { await handler(); } finally { menu.remove(); }
+            });
+            menu.appendChild(item);
+        };
+
+        const canAct = this.isLoggedIn && !!this.clients.get(channelName);
+        addItem('Delete message', async () => this.deleteMessage(channelName, realMsgId), !canAct || !realMsgId);
+        addItem('Timeout User...', async () => this.showTimeoutDialog(channelName, username), !canAct);
+        addItem('Ban User...', async () => this.showBanDialog(channelName, username), !canAct);
+        addItem('Unban', async () => this.unbanUser(channelName, username), !canAct);
+        addItem('View history', async () => this.showUserHistory(channelName, username));
+
+        // Position near cursor
+        const x = event.clientX;
+        const y = event.clientY;
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+        document.body.appendChild(menu);
+
+        // Click outside to close
+        const close = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', close);
+                document.removeEventListener('contextmenu', close);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', close);
+            document.addEventListener('contextmenu', close);
+        }, 0);
+    }
+
+    getModerationClient(channelName) {
+        const client = this.clients.get(channelName);
+        if (!this.isLoggedIn || !client) {
+            this.showNotification('Login with a moderator account to perform actions', 'error');
+            return null;
+        }
+        return client;
+    }
+
+    async deleteMessage(channelName, messageId) {
+        if (!messageId) {
+            this.showNotification('Cannot delete: missing message id', 'error');
+            return;
+        }
+
+        // Find the message element to mark as deleted
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (messageElement) {
+            this.markMessageAsDeleted(messageElement);
+        }
+
+        // Prefer Helix if configured
+        const helixOk = await this.tryHelix('mod-delete-message', { channelLogin: channelName, messageId }, 'Message deleted');
+        if (helixOk) return;
+
+        const client = this.getModerationClient(channelName);
+        if (!client) return;
+        try {
+            await client.deletemessage(`#${channelName}`, messageId);
+            this.showNotification('Message deleted', 'success');
+        } catch (error) {
+            console.error('Delete message failed:', error);
+            // Fallback: send slash command directly
+            try {
+                await client.say(`#${channelName}`, `/delete ${messageId}`);
+                this.showNotification('Delete requested', 'info');
+            } catch (e2) {
+                console.error('Fallback delete failed:', e2);
+                this.showNotification('Failed to delete message', 'error');
+            }
+        }
+    }
+
+    markMessageAsDeleted(messageElement) {
+        messageElement.classList.add('message-deleted');
+        messageElement.style.opacity = '0.5';
+
+        // Add a "DELETED" badge
+        const badge = document.createElement('span');
+        badge.className = 'deleted-badge';
+        badge.textContent = 'DELETED';
+        badge.style.cssText = `
+            background: #e91e63;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: 8px;
+        `;
+
+        const messageHeader = messageElement.querySelector('.message-header');
+        if (messageHeader) {
+            messageHeader.appendChild(badge);
+        }
+
+        // Add strike-through to message content
+        const messageContent = messageElement.querySelector('.message-content');
+        if (messageContent) {
+            messageContent.style.textDecoration = 'line-through';
+            messageContent.style.color = '#adadb8';
+        }
+    }
+
+    async timeoutUser(channelName, username, seconds, reason = 'ModDeck timeout') {
+        // Mark all messages from this user as timed out
+        this.markUserAsTimedOut(channelName, username, seconds);
+
+        // Prefer Helix if configured
+        const helixOk = await this.tryHelix('mod-timeout', { channelLogin: channelName, targetLogin: username, seconds, reason }, `Timed out ${username} for ${Math.floor(seconds/60)}m`);
+        if (helixOk) return;
+
+        const client = this.getModerationClient(channelName);
+        if (!client) return;
+        try {
+            await client.timeout(`#${channelName}`, username, seconds, reason);
+            this.showNotification(`Timed out ${username} for ${Math.floor(seconds/60)}m`, 'success');
+        } catch (error) {
+            console.error('Timeout failed:', error);
+            // Fallback: slash command
+            try {
+                await client.say(`#${channelName}`, `/timeout ${username} ${seconds} ${reason}`);
+                this.showNotification('Timeout requested', 'info');
+            } catch (e2) {
+                console.error('Fallback timeout failed:', e2);
+                this.showNotification('Failed to timeout user', 'error');
+            }
+        }
+    }
+
+    markUserAsTimedOut(channelName, username, seconds) {
+        const container = document.getElementById(`chat-${channelName}`);
+        if (!container) return;
+
+        const userMessages = container.querySelectorAll(`[data-username="${username}"]`);
+        userMessages.forEach(messageElement => {
+            messageElement.classList.add('user-timed-out');
+            messageElement.style.opacity = '0.6';
+
+            // Add timeout badge
+            const badge = document.createElement('span');
+            badge.className = 'timeout-badge';
+            badge.textContent = `TIMEOUT (${Math.floor(seconds/60)}m)`;
+            badge.style.cssText = `
+                background: #ff9800;
+                color: white;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: bold;
+                text-transform: uppercase;
+                margin-left: 8px;
+            `;
+
+            const messageHeader = messageElement.querySelector('.message-header');
+            if (messageHeader && !messageHeader.querySelector('.timeout-badge')) {
+                messageHeader.appendChild(badge);
+            }
+        });
+    }
+
+    async banUser(channelName, username, reason = 'ModDeck ban') {
+        // Mark all messages from this user as banned
+        this.markUserAsBanned(channelName, username);
+
+        // Prefer Helix if configured
+        const helixOk = await this.tryHelix('mod-ban', { channelLogin: channelName, targetLogin: username, reason }, `Banned ${username}`);
+        if (helixOk) return;
+
+        const client = this.getModerationClient(channelName);
+        if (!client) return;
+        try {
+            await client.ban(`#${channelName}`, username, reason);
+            this.showNotification(`Banned ${username}`, 'success');
+        } catch (error) {
+            console.error('Ban failed:', error);
+            // Fallback: slash command
+            try {
+                await client.say(`#${channelName}`, `/ban ${username} ${reason}`);
+                this.showNotification('Ban requested', 'info');
+            } catch (e2) {
+                console.error('Fallback ban failed:', e2);
+                this.showNotification('Failed to ban user', 'error');
+            }
+        }
+    }
+
+    markUserAsBanned(channelName, username) {
+        const container = document.getElementById(`chat-${channelName}`);
+        if (!container) return;
+
+        const userMessages = container.querySelectorAll(`[data-username="${username}"]`);
+        userMessages.forEach(messageElement => {
+            messageElement.classList.add('user-banned');
+            messageElement.style.opacity = '0.4';
+
+            // Add ban badge
+            const badge = document.createElement('span');
+            badge.className = 'ban-badge';
+            badge.textContent = 'BANNED';
+            badge.style.cssText = `
+                background: #f44336;
+                color: white;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: bold;
+                text-transform: uppercase;
+                margin-left: 8px;
+            `;
+
+            const messageHeader = messageElement.querySelector('.message-header');
+            if (messageHeader && !messageHeader.querySelector('.ban-badge')) {
+                messageHeader.appendChild(badge);
+            }
+        });
+    }
+
+    async unbanUser(channelName, username) {
+        // Remove ban indicators from user's messages
+        this.markUserAsUnbanned(channelName, username);
+
+        // Prefer Helix if configured
+        const helixOk = await this.tryHelix('mod-unban', { channelLogin: channelName, targetLogin: username }, `Unbanned ${username}`);
+        if (helixOk) return;
+
+        const client = this.getModerationClient(channelName);
+        if (!client) return;
+        try {
+            await client.unban(`#${channelName}`, username);
+            this.showNotification(`Unbanned ${username}`, 'success');
+        } catch (error) {
+            console.error('Unban failed:', error);
+            // Fallback: slash command
+            try {
+                await client.say(`#${channelName}`, `/unban ${username}`);
+                this.showNotification('Unban requested', 'info');
+            } catch (e2) {
+                console.error('Fallback unban failed:', e2);
+                this.showNotification('Failed to unban user', 'error');
+            }
+        }
+    }
+
+    markUserAsUnbanned(channelName, username) {
+        const container = document.getElementById(`chat-${channelName}`);
+        if (!container) return;
+
+        const userMessages = container.querySelectorAll(`[data-username="${username}"]`);
+        userMessages.forEach(messageElement => {
+            messageElement.classList.remove('user-banned');
+            messageElement.style.opacity = '';
+
+            // Remove ban badge
+            const banBadge = messageElement.querySelector('.ban-badge');
+            if (banBadge) {
+                banBadge.remove();
+            }
+        });
+    }
+
+    async tryHelix(channel, payload, successMessage) {
+        try {
+            const result = await ipcRenderer.invoke(channel, payload);
+            if (result && result.success) {
+                if (successMessage) this.showNotification(successMessage, 'success');
+                // Log successful moderation action
+                this.logModerationAction(channel, payload, successMessage);
+                return true;
+            }
+            console.warn('Helix call returned failure:', channel, result);
+            return false;
+        } catch (err) {
+            console.warn('Helix call failed or not configured:', channel, err);
+            return false;
+        }
+    }
+
+    logModerationAction(action, payload, message) {
+        const logEntry = {
+            id: Date.now() + Math.random(),
+            timestamp: new Date(),
+            action: action,
+            channel: payload.channelLogin || payload.channelName,
+            target: payload.targetLogin || payload.username,
+            moderator: this.twitchUsername,
+            message: message,
+            details: payload
+        };
+
+        this.moderationLog.unshift(logEntry);
+
+        // Keep only last 1000 entries
+        if (this.moderationLog.length > 1000) {
+            this.moderationLog = this.moderationLog.slice(0, 1000);
+        }
+
+        // Update mod log UI if visible
+        if (this.showModLog) {
+            this.updateModLogUI();
+        }
+    }
+
+    showTimeoutDialog(channelName, username) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3>Timeout ${username}</h3>
+                    <button class="close-modal-btn" id="close-timeout">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <label>Duration</label>
+                        <select id="timeout-duration">
+                            <option value="30">30 seconds</option>
+                            <option value="60">1 minute</option>
+                            <option value="300" selected>5 minutes</option>
+                            <option value="600">10 minutes</option>
+                            <option value="900">15 minutes</option>
+                            <option value="1800">30 minutes</option>
+                            <option value="3600">1 hour</option>
+                            <option value="86400">24 hours</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Reason (optional)</label>
+                        <input type="text" id="timeout-reason" placeholder="e.g., Spam, Harassment, etc.">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="confirm-timeout" class="primary-btn">Timeout User</button>
+                    <button id="cancel-timeout" class="secondary-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('#close-timeout').addEventListener('click', () => document.body.removeChild(modal));
+        modal.querySelector('#cancel-timeout').addEventListener('click', () => document.body.removeChild(modal));
+        modal.querySelector('#confirm-timeout').addEventListener('click', () => {
+            const duration = parseInt(document.getElementById('timeout-duration').value);
+            const reason = document.getElementById('timeout-reason').value.trim();
+            this.timeoutUser(channelName, username, duration, reason || 'ModDeck timeout');
+            document.body.removeChild(modal);
+        });
+    }
+
+    showBanDialog(channelName, username) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3>Ban ${username}</h3>
+                    <button class="close-modal-btn" id="close-ban">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <label>Reason (optional)</label>
+                        <input type="text" id="ban-reason" placeholder="e.g., Harassment, Terms violation, etc.">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="confirm-ban" class="primary-btn danger">Ban User</button>
+                    <button id="cancel-ban" class="secondary-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('#close-ban').addEventListener('click', () => document.body.removeChild(modal));
+        modal.querySelector('#cancel-ban').addEventListener('click', () => document.body.removeChild(modal));
+        modal.querySelector('#confirm-ban').addEventListener('click', () => {
+            const reason = document.getElementById('ban-reason').value.trim();
+            this.banUser(channelName, username, reason || 'ModDeck ban');
+            document.body.removeChild(modal);
+        });
+    }
+
+    updateModLogUI() {
+        const modlogList = document.getElementById('modlog-list');
+        const noModlog = document.getElementById('no-modlog');
+        const modlogCount = document.getElementById('modlog-count');
+
+        if (!modlogList) return;
+
+        if (this.moderationLog.length === 0) {
+            modlogList.innerHTML = '<div id="no-modlog" class="no-modlog"><p>No moderation actions yet. Actions will appear here when you perform moderation.</p></div>';
+            if (modlogCount) {
+                modlogCount.textContent = '0';
+                modlogCount.classList.add('hidden');
+            }
+            return;
+        }
+
+        if (modlogCount) {
+            modlogCount.textContent = this.moderationLog.length.toString();
+            modlogCount.classList.remove('hidden');
+        }
+
+        const modlogHtml = this.moderationLog.map(entry => {
+            const timeStr = entry.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = entry.timestamp.toLocaleDateString();
+
+            let actionClass = 'delete';
+            let actionText = 'DELETE';
+
+            if (entry.action === 'mod-timeout') {
+                actionClass = 'timeout';
+                actionText = 'TIMEOUT';
+            } else if (entry.action === 'mod-ban') {
+                actionClass = 'ban';
+                actionText = 'BAN';
+            } else if (entry.action === 'mod-unban') {
+                actionClass = 'unban';
+                actionText = 'UNBAN';
+            }
+
+            const duration = entry.details.seconds ? ` (${Math.floor(entry.details.seconds/60)}m)` : '';
+            const reason = entry.details.reason ? ` - ${entry.details.reason}` : '';
+
+            return `
+                <div class="modlog-item">
+                    <div class="modlog-header-row">
+                        <span class="modlog-action ${actionClass}">${actionText}${duration}</span>
+                        <span class="modlog-time">${dateStr} ${timeStr}</span>
+                    </div>
+                    <div class="modlog-details">
+                        <span class="modlog-channel">#${entry.channel}</span>
+                        <span class="modlog-target">${entry.target}</span>
+                        <span class="modlog-moderator">by ${entry.moderator}</span>
+                        ${reason ? `<span class="modlog-reason">${reason}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        modlogList.innerHTML = modlogHtml;
+    }
+
+    exportModLog() {
+        if (this.moderationLog.length === 0) {
+            this.showNotification('No moderation actions to export', 'info');
+            return;
+        }
+
+        const csvData = [
+            ['Timestamp', 'Action', 'Channel', 'Target', 'Moderator', 'Reason', 'Details']
+        ];
+
+        this.moderationLog.forEach(entry => {
+            let actionText = 'DELETE';
+            if (entry.action === 'mod-timeout') actionText = 'TIMEOUT';
+            else if (entry.action === 'mod-ban') actionText = 'BAN';
+            else if (entry.action === 'mod-unban') actionText = 'UNBAN';
+
+            const duration = entry.details.seconds ? ` (${Math.floor(entry.details.seconds/60)}m)` : '';
+            const reason = entry.details.reason || '';
+
+            csvData.push([
+                entry.timestamp.toISOString(),
+                actionText + duration,
+                entry.channel,
+                entry.target,
+                entry.moderator,
+                reason,
+                JSON.stringify(entry.details)
+            ]);
+        });
+
+        const csvContent = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `moddeck-modlog-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showNotification('Moderation log exported successfully', 'success');
+    }
+
+    async showUserHistory(channelName, username) {
+        const channelData = this.channels.get(channelName);
+        if (!channelData) return;
+        const recent = channelData.messages
+            .filter(m => (m.username || '').toLowerCase() === username.toLowerCase())
+            .slice(-50)
+            .reverse();
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const listHtml = recent.map(m => {
+            const ts = m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp);
+            const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `<div style="padding:6px 0;border-bottom:1px solid #2f2f35;">
+                <span style="opacity:0.7;margin-right:8px;">${timeStr}</span>
+                <span>${this.escapeHtml(m.message)}</span>
+            </div>`;
+        }).join('') || '<div style="opacity:0.7;">No recent messages</div>';
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px; max-height: 70vh; overflow: auto;">
+                <div class="modal-header"><h3>History: ${username}</h3><button class="close-modal-btn" id="close-history">×</button></div>
+                <div class="modal-body">${listHtml}</div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('#close-history').addEventListener('click', () => document.body.removeChild(modal));
+    }
+
+    // ===== Helpers for recurrence & safety =====
+    getRecurrenceTracker(channelName) {
+        if (!this.recurrenceTrackers.has(channelName)) {
+            this.recurrenceTrackers.set(channelName, { events: [], counts: new Map() });
+        }
+        return this.recurrenceTrackers.get(channelName);
+    }
+
+    normalizeMessageText(text) {
+        if (!text) return '';
+        // Lowercase, remove punctuation, collapse whitespace
+        return text
+            .toLowerCase()
+            .replace(/https?:\/\/\S+/g, '')
+            .replace(/[^\p{L}\p{N}\s]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     processMessageEmotes(message, userstate, channelName) {
@@ -1819,12 +2498,24 @@ class ModDeckApp {
         });
         document.getElementById('cancel-logout').addEventListener('click', () => this.closeModal('profile-modal'));
 
-        // Main tabs (Chat/Mentions)
+        // Main tabs (Chat/Mentions/ModLog)
         document.getElementById('chat-tab').addEventListener('click', () => this.switchMainTab('chat'));
         document.getElementById('mentions-tab').addEventListener('click', () => this.switchMainTab('mentions'));
+        document.getElementById('modlog-tab').addEventListener('click', () => this.switchMainTab('modlog'));
 
         // Mentions functionality
         document.getElementById('clear-mentions').addEventListener('click', () => this.clearAllMentions());
+
+        // Moderation log functionality
+        document.getElementById('clear-modlog').addEventListener('click', () => {
+            this.moderationLog = [];
+            this.updateModLogUI();
+            this.showNotification('Moderation log cleared', 'success');
+        });
+
+        document.getElementById('export-modlog').addEventListener('click', () => {
+            this.exportModLog();
+        });
 
         // Add channel
         document.getElementById('add-tab-btn').addEventListener('click', () => this.openModal('add-channel-modal'));
@@ -1903,11 +2594,35 @@ class ModDeckApp {
         this.settings.theme = document.getElementById('theme-select').value;
         this.settings.language = document.getElementById('language-select').value;
 
+        // Helix fields (if present)
+        const clientIdInput = document.getElementById('helix-client-id');
+        const accessTokenInput = document.getElementById('helix-access-token');
+        this.settings.helix = {
+            clientId: clientIdInput ? clientIdInput.value.trim() : (this.settings.helix?.clientId || ''),
+            accessToken: accessTokenInput ? accessTokenInput.value.trim() : (this.settings.helix?.accessToken || '')
+        };
+
+        // Debug: Log what we're saving
+        console.log('Saving Helix settings:', {
+            clientId: this.settings.helix.clientId ? 'SET' : 'NOT SET',
+            accessToken: this.settings.helix.accessToken ? 'SET' : 'NOT SET'
+        });
+
         // Save opened tabs
         this.settings.openTabs = Array.from(this.channels.keys());
         this.settings.activeTab = this.activeChannel;
 
         try {
+            // Optional: validate token to help user
+            try {
+                const validation = await ipcRenderer.invoke('validate-helix');
+                if (!validation.ok) {
+                    console.warn('Helix token validation failed:', validation.error);
+                } else {
+                    console.log('Helix token validation:', validation.data);
+                }
+            } catch (e) { /* ignore */ }
+
             await ipcRenderer.invoke('save-settings', this.settings);
             this.updateMentionKeywords();
             this.updateCurrentKeywordsDisplay();
@@ -2017,6 +2732,18 @@ class ModDeckApp {
         document.getElementById('mention-keywords').value = this.settings.mentionKeywords || 'fugu_fps,moddeck';
         document.getElementById('theme-select').value = this.settings.theme || 'dark';
         document.getElementById('language-select').value = this.settings.language || 'fr';
+
+        // Helix fields in settings modal (if present)
+        const clientIdInput = document.getElementById('helix-client-id');
+        const accessTokenInput = document.getElementById('helix-access-token');
+        if (clientIdInput) clientIdInput.value = this.settings.helix?.clientId || '';
+        if (accessTokenInput) accessTokenInput.value = this.settings.helix?.accessToken || '';
+
+        // Debug: Log what we loaded
+        console.log('Loaded Helix settings:', {
+            clientId: this.settings.helix?.clientId ? 'SET' : 'NOT SET',
+            accessToken: this.settings.helix?.accessToken ? 'SET' : 'NOT SET'
+        });
 
         // Apply theme
         if (this.settings.theme) {

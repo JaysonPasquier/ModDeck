@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ModDeck v2</title>
+    <title>ModDeck v3</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
         <div class="title-bar">
             <div class="title-bar-left">
                 <img src="assets/icon.svg" alt="ModDeck" class="app-icon">
-                <span class="app-title">ModDeck v2</span>
+                <span class="app-title">ModDeck v3</span>
             </div>
             <div class="title-bar-controls">
                 <button id="profile-btn" class="control-btn profile-btn hidden" title="Account">
@@ -80,6 +80,10 @@
                     Mentions
                     <span id="mentions-count" class="mention-counter hidden">0</span>
                 </button>
+                <button id="modlog-tab" class="main-tab" data-tab="modlog">
+                    Mod Log
+                    <span id="modlog-count" class="mention-counter hidden">0</span>
+                </button>
             </div>
             <div class="channel-tabs-wrapper" id="chat-tab-content">
                 <div class="tabs-header">
@@ -124,7 +128,7 @@
                     <!-- Tab content will be added dynamically -->
                     <div id="no-channels" class="no-channels">
                         <div class="no-channels-content">
-                            <h3>Welcome to ModDeck v2!</h3>
+                            <h3>Welcome to ModDeck v3!</h3>
                             <p>Add your first channel to get started</p>
                             <button id="add-first-channel" class="primary-btn">Add Channel</button>
                         </div>
@@ -143,6 +147,25 @@
                         <!-- Mentions will be added dynamically -->
                         <div id="no-mentions" class="no-mentions">
                             <p><span data-translate="No mentions yet">No mentions yet</span>. <span data-translate="Keywords">Keywords</span>: <span id="current-keywords">fugu_fps, moddeck</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Moderation Log Tab Content -->
+            <div id="modlog-content" class="tab-content">
+                <div class="modlog-panel">
+                    <div class="modlog-header">
+                        <h3>Moderation Log</h3>
+                        <div class="modlog-controls">
+                            <button id="clear-modlog" class="secondary-btn">Clear Log</button>
+                            <button id="export-modlog" class="secondary-btn">Export</button>
+                        </div>
+                    </div>
+                    <div id="modlog-list" class="modlog-list">
+                        <!-- Moderation actions will be added dynamically -->
+                        <div id="no-modlog" class="no-modlog">
+                            <p>No moderation actions yet. Actions will appear here when you perform moderation.</p>
                         </div>
                     </div>
                 </div>
@@ -233,6 +256,18 @@
                             <input type="checkbox" id="add-to-start-menu">
                             <span>Add to Start Menu</span>
                         </label>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Twitch API</h4>
+                        <label class="setting-item">
+                            <span>Client ID</span>
+                            <input type="text" id="helix-client-id" placeholder="Enter Twitch Client ID" />
+                        </label>
+                        <label class="setting-item">
+                            <span>OAuth Access Token</span>
+                            <input type="password" id="helix-access-token" placeholder="Enter OAuth Token (Bearer)" />
+                        </label>
+                        <small>Scopes required: moderator:manage:chat_messages, moderator:manage:banned_users, user:read:email (optional)</small>
                     </div>
                 </div>
                 <div class="modal-actions">

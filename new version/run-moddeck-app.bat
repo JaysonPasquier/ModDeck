@@ -1,8 +1,8 @@
 @echo off
-REM ModDeck v2 Launcher
+REM ModDeck v3 Launcher
 
 echo ==========================================
-echo ModDeck v2 - Launcher
+echo ModDeck v3 - Launcher
 echo ==========================================
 echo.
 
@@ -40,7 +40,7 @@ if not exist "package.json" (
 echo ✅ package.json found
 
 echo.
-echo 🚀 Starting ModDeck v2...
+echo 🚀 Starting ModDeck v3...
 echo.
 
 REM Start ModDeck directly
