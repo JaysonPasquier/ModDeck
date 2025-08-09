@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -209,6 +209,11 @@ function createWindow() {
 
   console.log(`Creating window with dimensions: ${windowWidth}x${windowHeight} at (${windowX}, ${windowY})`);
 
+  const iconPath = process.platform === 'win32'
+    ? path.join(__dirname, 'assets', 'icon.ico')
+    : path.join(__dirname, 'assets', 'icon.png');
+  const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : null;
+
   mainWindow = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
@@ -230,7 +235,8 @@ function createWindow() {
     show: false,
     titleBarStyle: 'hidden',
     backgroundColor: '#1a1a1a',
-    icon: path.join(__dirname, 'assets', 'icon.svg')
+    icon: icon,
+    title: 'ModDeck v3'
   });
 
   mainWindow.loadFile('index.html');
@@ -327,6 +333,19 @@ function createSettingsWindow() {
 
 // App event handlers
 app.whenReady().then(() => {
+  // Set app icon for taskbar
+  const iconPath = process.platform === 'win32'
+    ? path.join(__dirname, 'assets', 'icon.ico')
+    : path.join(__dirname, 'assets', 'icon.png');
+
+  if (fs.existsSync(iconPath)) {
+    const icon = nativeImage.createFromPath(iconPath);
+    app.setAppUserModelId('com.fugufps.moddeck-v3');
+    if (process.platform === 'win32') {
+      app.setAppUserModelId('com.fugufps.moddeck-v3');
+    }
+  }
+
   // Initialize version manager
   versionManager = new VersionManager();
 
@@ -539,6 +558,66 @@ async function ensureIds(channelLogin) {
   return { broadcasterId, moderatorId };
 }
 
+async function getUserBanHistory(channelLogin, targetLogin) {
+  try {
+    const ids = await ensureIds(channelLogin);
+    if (!ids) return null;
+
+    const targetId = await helixGetUserIdByLogin(targetLogin);
+    if (!targetId) return null;
+
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/moderation/bans?broadcaster_id=${ids.broadcasterId}&moderator_id=${ids.moderatorId}&user_id=${targetId}`;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      console.error(`Failed to get ban history: ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json();
+    return data.data || [];
+  } catch (error) {
+    console.error('Error getting user ban history:', error);
+    return null;
+  }
+}
+
+async function getUserMessages(channelLogin, targetLogin) {
+  try {
+    const ids = await ensureIds(channelLogin);
+    if (!ids) return null;
+
+    const targetId = await helixGetUserIdByLogin(targetLogin);
+    if (!targetId) return null;
+
+    const headers = getHelixHeaders();
+
+    // Get user information from Twitch API
+    const userUrl = `https://api.twitch.tv/helix/users?id=${targetId}`;
+    const userRes = await fetch(userUrl, { headers });
+
+    let userInfo = null;
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      userInfo = userData.data?.[0] || null;
+    }
+
+    // Note: Twitch API doesn't provide direct access to chat history
+    // We'll return user info and let the frontend use local messages
+    return {
+      userInfo: userInfo,
+      messages: [] // Will be populated from local storage
+    };
+  } catch (error) {
+    console.error('Error getting user messages:', error);
+    return {
+      userInfo: null,
+      messages: []
+    };
+  }
+}
+
 ipcMain.handle('mod-delete-message', async (event, { channelLogin, messageId }) => {
   try {
     const { broadcasterId, moderatorId } = await ensureIds(channelLogin);
@@ -624,6 +703,226 @@ ipcMain.handle('mod-unban', async (event, { channelLogin, targetLogin }) => {
     return { success: true };
   } catch (error) {
     console.error('Helix unban error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('pin-message', async (event, { channelLogin, message, username, messageId }) => {
+  try {
+    const { broadcasterId, moderatorId } = await ensureIds(channelLogin);
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/chat/announcements`;
+    const body = {
+      broadcaster_id: broadcasterId,
+      moderator_id: moderatorId,
+      message: `📌 PINNED: ${message}` // Add pin emoji and prefix
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix announcement failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix announcement error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('create-prediction', async (event, { channelLogin, title, outcomes, duration }) => {
+  try {
+    const { broadcasterId } = await ensureIds(channelLogin);
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/predictions`;
+    const body = {
+      broadcaster_id: broadcasterId,
+      title: title,
+      outcomes: outcomes.map(outcome => ({ title: outcome })),
+      prediction_window: duration
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix create prediction failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix create prediction error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-prediction', async (event, { channelLogin }) => {
+  try {
+    const { broadcasterId } = await ensureIds(channelLogin);
+    const headers = getHelixHeaders();
+    const url = `https://api.twitch.tv/helix/predictions?broadcaster_id=${broadcasterId}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix get prediction failed: ${res.status} ${detail}`);
+    }
+    const data = await res.json();
+    return {
+      success: true,
+      prediction: data.data && data.data.length > 0 ? data.data[0] : null
+    };
+  } catch (error) {
+    console.error('Helix get prediction error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('end-prediction', async (event, { channelLogin, winningOutcome }) => {
+  try {
+    const { broadcasterId } = await ensureIds(channelLogin);
+    const headers = getHelixHeaders();
+
+    // First get current prediction to get prediction ID
+    const getPredictionUrl = `https://api.twitch.tv/helix/predictions?broadcaster_id=${broadcasterId}`;
+    const getPredictionRes = await fetch(getPredictionUrl, { headers });
+    if (!getPredictionRes.ok) {
+      throw new Error('Failed to get current prediction');
+    }
+    const predictionData = await getPredictionRes.json();
+    if (!predictionData.data || predictionData.data.length === 0) {
+      throw new Error('No active prediction found');
+    }
+
+    const prediction = predictionData.data[0];
+    const winningOutcomeId = winningOutcome === 'outcome1' ?
+      prediction.outcomes[0].id : prediction.outcomes[1].id;
+
+    const url = `https://api.twitch.tv/helix/predictions`;
+    const body = {
+      broadcaster_id: broadcasterId,
+      id: prediction.id,
+      status: 'RESOLVED',
+      winning_outcome_id: winningOutcomeId
+    };
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix end prediction failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix end prediction error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('cancel-prediction', async (event, { channelLogin }) => {
+  try {
+    const { broadcasterId } = await ensureIds(channelLogin);
+    const headers = getHelixHeaders();
+
+    // First get current prediction to get prediction ID
+    const getPredictionUrl = `https://api.twitch.tv/helix/predictions?broadcaster_id=${broadcasterId}`;
+    const getPredictionRes = await fetch(getPredictionUrl, { headers });
+    if (!getPredictionRes.ok) {
+      throw new Error('Failed to get current prediction');
+    }
+    const predictionData = await getPredictionRes.json();
+    if (!predictionData.data || predictionData.data.length === 0) {
+      throw new Error('No active prediction found');
+    }
+
+    const prediction = predictionData.data[0];
+
+    const url = `https://api.twitch.tv/helix/predictions`;
+    const body = {
+      broadcaster_id: broadcasterId,
+      id: prediction.id,
+      status: 'CANCELED'
+    };
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = await res.text(); } catch {}
+      throw new Error(`Helix cancel prediction failed: ${res.status} ${detail}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Helix cancel prediction error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+    ipcMain.handle('get-user-ban-history', async (event, { channelLogin, targetLogin }) => {
+      try {
+        const banHistory = await getUserBanHistory(channelLogin, targetLogin);
+        return { success: true, data: banHistory };
+      } catch (error) {
+        console.error('Error getting user ban history:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Get user messages from Twitch API
+    ipcMain.handle('get-user-messages', async (event, { channelLogin, targetLogin }) => {
+      try {
+        const messages = await getUserMessages(channelLogin, targetLogin);
+        return { success: true, data: messages };
+      } catch (error) {
+        console.error('Error getting user messages:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+// Send chat message via Helix API
+ipcMain.handle('helix-send-message', async (event, { channelLogin, message, replyToMessageId = null }) => {
+  try {
+    const broadcasterId = await helixGetUserIdByLogin(channelLogin);
+    const senderId = await helixGetSelfUserId();
+
+    const body = {
+      broadcaster_id: broadcasterId,
+      sender_id: senderId,
+      message: message
+    };
+
+    // Add reply parent if specified
+    if (replyToMessageId) {
+      body.reply_parent_message_id = replyToMessageId;
+    }
+
+    const headers = getHelixHeaders();
+    const res = await fetch('https://api.twitch.tv/helix/chat/messages', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(`Helix send message failed: ${res.status} - ${errorData?.message || 'Unknown error'}`);
+    }
+
+    const data = await res.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending message via Helix:', error);
     return { success: false, error: error.message };
   }
 });
@@ -769,7 +1068,9 @@ ipcMain.handle('create-desktop-shortcut', async () => {
     console.error('Error creating desktop shortcut:', error);
     return false;
   }
-});ipcMain.handle('add-to-start-menu', async () => {
+});
+
+ipcMain.handle('add-to-start-menu', async () => {
   try {
     if (process.platform === 'win32') {
       const os = require('os');

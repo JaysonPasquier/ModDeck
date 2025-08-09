@@ -20,6 +20,11 @@ class ModDeckApp {
         // Cache for 7TV emotes
         this.sevenTVEmotes = new Map();
         this.globalSevenTVEmotes = new Map();
+
+        // Cache for Twitch badges
+        this.globalBadges = new Map();
+        this.channelBadges = new Map();
+
         this.mentionKeywords = [];
 
         // Global mentions system
@@ -32,6 +37,13 @@ class ModDeckApp {
         // Moderation tracking
         this.moderationLog = [];
         this.showModLog = false;
+
+        // Reply functionality
+        this.replyTarget = null;
+        this.pendingReplies = new Map(); // Store pending replies to detect them when they echo back
+
+        // Helix API capabilities
+        this.helixAvailable = false;
 
         // Localization
         this.translations = {
@@ -80,7 +92,158 @@ class ModDeckApp {
                 'Connecting to': 'Connecting to',
                 'Chat messages will appear here once connected.': 'Chat messages will appear here once connected.',
                 'Type a message...': 'Type a message...',
-                'Login to send messages': 'Login to send messages'
+                'Login to send messages': 'Login to send messages',
+                'Mod Log': 'Mod Log',
+                'Clear Log': 'Clear Log',
+                'Export': 'Export',
+                'No moderation actions yet': 'No moderation actions yet',
+                'Actions will appear here when you perform moderation': 'Actions will appear here when you perform moderation',
+                'Timeout User': 'Timeout User',
+                'Ban User': 'Ban User',
+                'Unban User': 'Unban User',
+                'Delete Message': 'Delete Message',
+                'View History': 'View History',
+                'Duration (seconds)': 'Duration (seconds)',
+                'Reason': 'Reason',
+                'Confirm': 'Confirm',
+                'User History': 'User History',
+                'Recent messages from': 'Recent messages from',
+                'No messages found': 'No messages found',
+                'DELETED': 'DELETED',
+                'TIMEOUT': 'TIMEOUT',
+                'BANNED': 'BANNED',
+                'Recurrent': 'Recurrent',
+                'Twitch API': 'Twitch API',
+                'Client ID': 'Client ID',
+                'OAuth Access Token': 'OAuth Access Token',
+                'Requires moderator permissions': 'Requires moderator permissions',
+                'Welcome to ModDeck v3!': 'Welcome to ModDeck v3!',
+                'Moderation Log': 'Moderation Log',
+                'Moderation actions': 'Moderation actions',
+                'Channel': 'Channel',
+                'Target': 'Target',
+                'Moderator': 'Moderator',
+                'Action': 'Action',
+                'Time': 'Time',
+                'Details': 'Details',
+                'Export Moderation Log': 'Export Moderation Log',
+                'Moderation log exported successfully': 'Moderation log exported successfully',
+                'Failed to export moderation log': 'Failed to export moderation log',
+                'Mentions & Keywords': 'Mentions & Keywords',
+                'Clear All': 'Clear All',
+                'No mentions yet': 'Aucune mention pour le moment',
+                'Keywords': 'Mots-clés',
+                'Current Keywords': 'Mots-clés actuels',
+                'Add Keyword': 'Ajouter un mot-clé',
+                'Remove Keyword': 'Supprimer le mot-clé',
+                'Enter keyword': 'Entrez le mot-clé',
+                'Add': 'Ajouter',
+                'Remove': 'Supprimer',
+                'Window Settings': 'Paramètres de fenêtre',
+                'Always on top': 'Toujours au premier plan',
+                'Auto-scroll': 'Défilement automatique',
+                'Show timestamps': 'Afficher les horodatages',
+                'Highlight mentions': 'Mettre en surbrillance les mentions',
+                'Chat Settings': 'Paramètres de chat',
+                'Show badges': 'Afficher les badges',
+                'Show colors': 'Afficher les couleurs',
+                'Enable mentions': 'Activer les mentions',
+                'Mention Settings': 'Paramètres de mentions',
+                'Mention keywords (comma-separated)': 'Mots-clés de mention (séparés par des virgules)',
+                'Update Settings': 'Paramètres de mise à jour',
+                'Auto-update': 'Mise à jour automatique',
+                'Check for updates': 'Vérifier les mises à jour',
+                'Update available': 'Mise à jour disponible',
+                'Download update': 'Télécharger la mise à jour',
+                'Install update': 'Installer la mise à jour',
+                'Update downloaded': 'Mise à jour téléchargée',
+                'Restart to install': 'Redémarrer pour installer',
+                'No updates available': 'Aucune mise à jour disponible',
+                'Error checking for updates': 'Erreur lors de la vérification des mises à jour',
+                'Close': 'Fermer',
+                'Minimize': 'Réduire',
+                'Pin to top': 'Épingler au premier plan',
+                'Unpin from top': 'Désépingler du premier plan',
+                'Developer Tools': 'Outils de développement',
+                'Create Desktop Shortcut': 'Créer un raccourci bureau',
+                'Add to Start Menu': 'Ajouter au menu Démarrer',
+                'Shortcut created': 'Raccourci créé',
+                'Shortcut added': 'Raccourci ajouté',
+                'Failed to create shortcut': 'Échec de la création du raccourci',
+                'Failed to add to start menu': 'Échec de l\'ajout au menu Démarrer',
+                'Message deleted': 'Message supprimé',
+                'Message deleted successfully': 'Message supprimé avec succès',
+                'Failed to delete message': 'Échec de la suppression du message',
+                'User timed out': 'Utilisateur expulsé',
+                'User banned': 'Utilisateur banni',
+                'User unbanned': 'Utilisateur débanni',
+                'Action successful': 'Action réussie',
+                'Action failed': 'Action échouée',
+                'Login required': 'Connexion requise',
+                'Please login to perform this action': 'Veuillez vous connecter pour effectuer cette action',
+                'Invalid credentials': 'Identifiants invalides',
+                'Connection failed': 'Échec de la connexion',
+                'Connected successfully': 'Connexion réussie',
+                'Disconnected': 'Déconnecté',
+                'Connecting...': 'Connexion...',
+                'Disconnecting...': 'Déconnexion...',
+                'Channel added': 'Canal ajouté',
+                'Channel removed': 'Canal supprimé',
+                'Failed to add channel': 'Échec de l\'ajout du canal',
+                'Failed to remove channel': 'Échec de la suppression du canal',
+                'Filter applied': 'Filtre appliqué',
+                'Filter cleared': 'Filtre effacé',
+                'No messages match filter': 'Aucun message ne correspond au filtre',
+                'Scroll to bottom': 'Défiler vers le bas',
+                'New messages below': 'Nouveaux messages en bas',
+                'All caught up': 'Tout est à jour',
+                'Loading...': 'Chargement...',
+                'Error': 'Erreur',
+                'Success': 'Succès',
+                'Warning': 'Avertissement',
+                'Info': 'Information',
+                'Yes': 'Oui',
+                'No': 'Non',
+                'OK': 'OK',
+                'Apply': 'Appliquer',
+                'Reset': 'Réinitialiser',
+                'Default': 'Par défaut',
+                'Custom': 'Personnalisé',
+                'Enabled': 'Activé',
+                'Disabled': 'Désactivé',
+                'On': 'Activé',
+                'Off': 'Désactivé',
+                'Active': 'Actif',
+                'Inactive': 'Inactif',
+                'Online': 'En ligne',
+                'Offline': 'Hors ligne',
+                'Connected': 'Connecté',
+                'Disconnected': 'Déconnecté',
+                'Pending': 'En attente',
+                'Processing': 'En cours',
+                'Complete': 'Terminé',
+                'Failed': 'Échoué',
+                'Unknown': 'Inconnu',
+                'Loading emotes...': 'Chargement des emotes...',
+                'Emotes loaded': 'Emotes chargées',
+                'Failed to load emotes': 'Échec du chargement des emotes',
+                'No emotes found': 'Aucune emote trouvée',
+                'Emote cache cleared': 'Cache des emotes effacé',
+                'Settings saved': 'Paramètres sauvegardés',
+                'Settings loaded': 'Paramètres chargés',
+                'Failed to save settings': 'Échec de la sauvegarde des paramètres',
+                'Failed to load settings': 'Échec du chargement des paramètres',
+                'Data exported': 'Données exportées',
+                'Data imported': 'Données importées',
+                'Failed to export data': 'Échec de l\'exportation des données',
+                'Failed to import data': 'Échec de l\'importation des données',
+                'Backup created': 'Sauvegarde créée',
+                'Backup restored': 'Sauvegarde restaurée',
+                'Failed to create backup': 'Échec de la création de la sauvegarde',
+                'Failed to restore backup': 'Échec de la restauration de la sauvegarde',
+                'Reply': 'Reply',
+                'Replying to': 'Replying to',
+                'Cancel Reply': 'Cancel Reply'
             },
             fr: {
                 'Connect Channel': 'Connecter un Canal',
@@ -131,7 +294,165 @@ class ModDeckApp {
                 'Connecting to': 'Connexion à',
                 'Chat messages will appear here once connected.': 'Les messages du chat apparaîtront ici une fois connecté.',
                 'Type a message...': 'Tapez un message...',
-                'Login to send messages': 'Connectez-vous pour envoyer des messages'
+                'Login to send messages': 'Connectez-vous pour envoyer des messages',
+                'Mod Log': 'Journal de Modération',
+                'Clear Log': 'Effacer le Journal',
+                'Export': 'Exporter',
+                'No moderation actions yet': 'Aucune action de modération pour le moment',
+                'Actions will appear here when you perform moderation': 'Les actions apparaîtront ici lorsque vous effectuerez des modérations',
+                'Timeout User': 'Expulser l\'Utilisateur',
+                'Ban User': 'Bannir l\'Utilisateur',
+                'Unban User': 'Débannir l\'Utilisateur',
+                'Delete Message': 'Supprimer le Message',
+                'View History': 'Voir l\'Historique',
+                'Duration (seconds)': 'Durée (secondes)',
+                'Reason': 'Raison',
+                'Confirm': 'Confirmer',
+                'User History': 'Historique de l\'Utilisateur',
+                'Recent messages from': 'Messages récents de',
+                'No messages found': 'Aucun message trouvé',
+                'DELETED': 'SUPPRIMÉ',
+                'TIMEOUT': 'EXPULSION',
+                'BANNED': 'BANNI',
+                'Recurrent': 'Récurrent',
+                'Twitch API': 'API Twitch',
+                'Client ID': 'ID Client',
+                'OAuth Access Token': 'Token d\'Accès OAuth',
+                'Requires moderator permissions': 'Nécessite les permissions de modérateur',
+                'Welcome to ModDeck v3!': 'Bienvenue sur ModDeck v3 !',
+                'Moderation Log': 'Journal de Modération',
+                'Moderation actions': 'Actions de modération',
+                'Channel': 'Canal',
+                'Target': 'Cible',
+                'Moderator': 'Modérateur',
+                'Action': 'Action',
+                'Time': 'Heure',
+                'Details': 'Détails',
+                'Export Moderation Log': 'Exporter le Journal de Modération',
+                'Moderation log exported successfully': 'Journal de modération exporté avec succès',
+                'Failed to export moderation log': 'Échec de l\'exportation du journal de modération',
+                'Mentions & Keywords': 'Mentions et Mots-clés',
+                'Clear All': 'Tout effacer',
+                'No mentions yet': 'Aucune mention pour le moment',
+                'Keywords': 'Mots-clés',
+                'Current Keywords': 'Mots-clés actuels',
+                'Add Keyword': 'Ajouter un mot-clé',
+                'Remove Keyword': 'Supprimer le mot-clé',
+                'Enter keyword': 'Entrez le mot-clé',
+                'Add': 'Ajouter',
+                'Remove': 'Supprimer',
+                'Window Settings': 'Paramètres de fenêtre',
+                'Always on top': 'Toujours au premier plan',
+                'Auto-scroll': 'Défilement automatique',
+                'Show timestamps': 'Afficher les horodatages',
+                'Highlight mentions': 'Mettre en surbrillance les mentions',
+                'Chat Settings': 'Paramètres de chat',
+                'Show badges': 'Afficher les badges',
+                'Show colors': 'Afficher les couleurs',
+                'Enable mentions': 'Activer les mentions',
+                'Mention Settings': 'Paramètres de mentions',
+                'Mention keywords (comma-separated)': 'Mots-clés de mention (séparés par des virgules)',
+                'Update Settings': 'Paramètres de mise à jour',
+                'Auto-update': 'Mise à jour automatique',
+                'Check for updates': 'Vérifier les mises à jour',
+                'Update available': 'Mise à jour disponible',
+                'Download update': 'Télécharger la mise à jour',
+                'Install update': 'Installer la mise à jour',
+                'Update downloaded': 'Mise à jour téléchargée',
+                'Restart to install': 'Redémarrer pour installer',
+                'No updates available': 'Aucune mise à jour disponible',
+                'Error checking for updates': 'Erreur lors de la vérification des mises à jour',
+                'Close': 'Fermer',
+                'Minimize': 'Réduire',
+                'Pin to top': 'Épingler au premier plan',
+                'Unpin from top': 'Désépingler du premier plan',
+                'Developer Tools': 'Outils de développement',
+                'Create Desktop Shortcut': 'Créer un raccourci bureau',
+                'Add to Start Menu': 'Ajouter au menu Démarrer',
+                'Shortcut created': 'Raccourci créé',
+                'Shortcut added': 'Raccourci ajouté',
+                'Failed to create shortcut': 'Échec de la création du raccourci',
+                'Failed to add to start menu': 'Échec de l\'ajout au menu Démarrer',
+                'Message deleted': 'Message supprimé',
+                'Message deleted successfully': 'Message supprimé avec succès',
+                'Failed to delete message': 'Échec de la suppression du message',
+                'User timed out': 'Utilisateur expulsé',
+                'User banned': 'Utilisateur banni',
+                'User unbanned': 'Utilisateur débanni',
+                'Action successful': 'Action réussie',
+                'Action failed': 'Action échouée',
+                'Login required': 'Connexion requise',
+                'Please login to perform this action': 'Veuillez vous connecter pour effectuer cette action',
+                'Invalid credentials': 'Identifiants invalides',
+                'Connection failed': 'Échec de la connexion',
+                'Connected successfully': 'Connexion réussie',
+                'Disconnected': 'Déconnecté',
+                'Connecting...': 'Connexion...',
+                'Disconnecting...': 'Déconnexion...',
+                'Channel added': 'Canal ajouté',
+                'Channel removed': 'Canal supprimé',
+                'Failed to add channel': 'Échec de l\'ajout du canal',
+                'Failed to remove channel': 'Échec de la suppression du canal',
+                'Filter applied': 'Filtre appliqué',
+                'Filter cleared': 'Filtre effacé',
+                'No messages match filter': 'Aucun message ne correspond au filtre',
+                'Scroll to bottom': 'Défiler vers le bas',
+                'New messages below': 'Nouveaux messages en bas',
+                'All caught up': 'Tout est à jour',
+                'Loading...': 'Chargement...',
+                'Error': 'Erreur',
+                'Success': 'Succès',
+                'Warning': 'Avertissement',
+                'Info': 'Information',
+                'Yes': 'Oui',
+                'No': 'Non',
+                'OK': 'OK',
+                'Apply': 'Appliquer',
+                'Reset': 'Réinitialiser',
+                'Default': 'Par défaut',
+                'Custom': 'Personnalisé',
+                'Enabled': 'Activé',
+                'Disabled': 'Désactivé',
+                'On': 'Activé',
+                'Off': 'Désactivé',
+                'Active': 'Actif',
+                'Inactive': 'Inactif',
+                'Online': 'En ligne',
+                'Offline': 'Hors ligne',
+                'Connected': 'Connecté',
+                'Disconnected': 'Déconnecté',
+                'Pending': 'En attente',
+                'Processing': 'En cours',
+                'Complete': 'Terminé',
+                'Failed': 'Échoué',
+                'Unknown': 'Inconnu',
+                'Loading emotes...': 'Chargement des emotes...',
+                'Emotes loaded': 'Emotes chargées',
+                'Failed to load emotes': 'Échec du chargement des emotes',
+                'No emotes found': 'Aucune emote trouvée',
+                'Emote cache cleared': 'Cache des emotes effacé',
+                'Settings saved': 'Paramètres sauvegardés',
+                'Settings loaded': 'Paramètres chargés',
+                'Failed to save settings': 'Échec de la sauvegarde des paramètres',
+                'Failed to load settings': 'Échec du chargement des paramètres',
+                'Data exported': 'Données exportées',
+                'Data imported': 'Données importées',
+                'Failed to export data': 'Échec de l\'exportation des données',
+                'Failed to import data': 'Échec de l\'importation des données',
+                'Backup created': 'Sauvegarde créée',
+                'Backup restored': 'Sauvegarde restaurée',
+                'Failed to create backup': 'Échec de la création de la sauvegarde',
+                'Failed to restore backup': 'Échec de la restauration de la sauvegarde',
+                'Add your first channel to get started': 'Ajoutez votre premier canal pour commencer',
+                'Add New Channel': 'Ajouter un nouveau canal',
+                'Account': 'Compte',
+                'total messages': 'messages au total',
+                'Update available!': 'Mise à jour disponible!',
+                'Update': 'Mettre à jour',
+                'Logged in as': 'Connecté en tant que',
+                'Reply': 'Répondre',
+                'Replying to': 'Répondre à',
+                'Cancel Reply': 'Annuler la réponse'
             }
         };
 
@@ -141,12 +462,16 @@ class ModDeckApp {
     async init() {
         await this.loadSettings();
         await this.loadSevenTVEmotes();
+        await this.loadGlobalBadges();
         await this.loadChatData();
         this.setupEventListeners();
         this.setupIpcListeners();
         this.updateUI();
         this.updateLanguage(); // Add language update
         this.checkForSavedLogin();
+
+        // Check Helix API availability for proper replies
+        await this.checkHelixAvailability();
 
         // Update keywords after settings are loaded
         this.updateMentionKeywords();
@@ -189,44 +514,211 @@ class ModDeckApp {
         try {
             console.log('Loading 7TV emotes...');
 
-            // Load global 7TV emotes
+            // Load global 7TV emotes using the correct API endpoint
             const globalResponse = await fetch('https://7tv.io/v3/emote-sets/global');
             if (globalResponse.ok) {
                 const globalData = await globalResponse.json();
-                globalData.emotes.forEach(emote => {
-                    this.globalSevenTVEmotes.set(emote.name, {
-                        id: emote.id,
-                        name: emote.name,
-                        urls: emote.data.host.url
+                if (globalData.emotes) {
+                    globalData.emotes.forEach(emote => {
+                        // Use the correct structure like the working chat widget
+                        if (emote.name && emote.data && emote.data.host && emote.data.host.files) {
+                            // Build URLs from the files array like the working widget
+                            const urls = emote.data.host.files.map(file => `//${emote.data.host.url}/${file.name}`);
+
+                            this.globalSevenTVEmotes.set(emote.name, {
+                                id: emote.id,
+                                name: emote.name,
+                                urls: urls
+                            });
+
+                            // Debug: Log the specific emote we're looking for
+                            if (emote.name === 'catsittingverycomfortablearoundacampfirewithitsfriends') {
+                                console.log('7TV Debug - Found target emote in global emotes:', emote);
+                            }
+                        }
                     });
-                });
-                console.log(`Loaded ${this.globalSevenTVEmotes.size} global 7TV emotes`);
+                    console.log(`Loaded ${this.globalSevenTVEmotes.size} global 7TV emotes`);
+                }
+            } else {
+                console.warn('Failed to load global 7TV emotes:', globalResponse.status);
             }
         } catch (error) {
             console.error('Error loading 7TV emotes:', error);
         }
     }
 
-    async loadChannelSevenTVEmotes(channelName) {
+        async loadChannelSevenTVEmotes(channelName) {
         try {
-            const response = await fetch(`https://7tv.io/v3/users/twitch/${channelName}`);
-            if (response.ok) {
-                const userData = await response.json();
-                if (userData.emote_set && userData.emote_set.emotes) {
-                    const channelEmotes = new Map();
-                    userData.emote_set.emotes.forEach(emote => {
-                        channelEmotes.set(emote.name, {
-                            id: emote.id,
-                            name: emote.name,
-                            urls: emote.data.host.url
-                        });
-                    });
-                    this.sevenTVEmotes.set(channelName, channelEmotes);
-                    console.log(`Loaded ${channelEmotes.size} 7TV emotes for ${channelName}`);
+            // Use hardcoded emote set ID for fugu_fps like the working chat widget
+            // This avoids the 404 errors from the user API
+            let emoteSetId = null;
+
+            if (channelName === 'fugu_fps') {
+                emoteSetId = '01GEG2EPE80006SAE3KT92JGK5';
+                console.log(`Using hardcoded emote set ID for ${channelName}: ${emoteSetId}`);
+            } else {
+                // For other channels, try to get the emote set ID dynamically
+                const userResponse = await fetch(`https://7tv.io/v3/users/twitch/${channelName}`);
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    if (userData.emote_set && userData.emote_set.id) {
+                        emoteSetId = userData.emote_set.id;
+                        console.log(`Found emote set ID for ${channelName}: ${emoteSetId}`);
+                    }
                 }
+            }
+
+            if (emoteSetId) {
+                // Fetch the emotes using the emote set ID
+                const emotesResponse = await fetch(`https://7tv.io/v3/emote-sets/${emoteSetId}`);
+                if (emotesResponse.ok) {
+                    const emotesData = await emotesResponse.json();
+                    if (emotesData.emotes) {
+                        const channelEmotes = new Map();
+                        emotesData.emotes.forEach(emote => {
+                            // Use the correct structure like the working chat widget
+                            if (emote.name && emote.data && emote.data.host && emote.data.host.files) {
+                                // Build URLs from the files array like the working widget
+                                const urls = emote.data.host.files.map(file => `//${emote.data.host.url}/${file.name}`);
+
+                                channelEmotes.set(emote.name, {
+                                    id: emote.id,
+                                    name: emote.name,
+                                    urls: urls
+                                });
+
+                                // Debug: Log the specific emote we're looking for
+                                if (emote.name === 'catsittingverycomfortablearoundacampfirewithitsfriends') {
+                                    console.log('7TV Debug - Found target emote in channel:', emote);
+                                }
+                            }
+                        });
+                        this.sevenTVEmotes.set(channelName, channelEmotes);
+                        console.log(`Loaded ${channelEmotes.size} 7TV emotes for ${channelName}`);
+                    } else {
+                        console.log(`No emotes found in set for ${channelName}`);
+                    }
+                } else {
+                    console.warn(`Failed to load emote set for ${channelName}:`, emotesResponse.status);
+                }
+            } else {
+                console.log(`No emote set found for ${channelName}`);
             }
         } catch (error) {
             console.error(`Error loading 7TV emotes for ${channelName}:`, error);
+        }
+    }
+
+    async loadGlobalBadges() {
+        try {
+            console.log('Loading global Twitch badges...');
+
+            const response = await fetch('https://api.twitch.tv/helix/chat/badges/global', {
+                headers: {
+                    'Client-ID': 'gp762nuuoqcoxypju8c569th9wz7q5',
+                    'Authorization': 'Bearer m15k59400wm8tosv4499famn76qpr3'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Global badges response:', data);
+
+                if (data.data) {
+                    data.data.forEach(badgeSet => {
+                        const setId = badgeSet.set_id;
+                        const versions = new Map();
+
+                        badgeSet.versions.forEach(version => {
+                            versions.set(version.id, {
+                                id: version.id,
+                                title: version.title,
+                                description: version.description,
+                                imageUrl1x: version.image_url_1x,
+                                imageUrl2x: version.image_url_2x,
+                                imageUrl4x: version.image_url_4x,
+                                clickAction: version.click_action,
+                                clickUrl: version.click_url
+                            });
+                        });
+
+                        this.globalBadges.set(setId, versions);
+                    });
+
+                    console.log(`Loaded ${this.globalBadges.size} global badge sets`);
+                }
+            } else {
+                console.warn('Failed to load global badges:', response.status);
+            }
+        } catch (error) {
+            console.error('Error loading global badges:', error);
+        }
+    }
+
+    async loadChannelBadges(channelName) {
+        try {
+            console.log(`Loading channel badges for ${channelName}...`);
+
+            // First get the channel ID
+            const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${channelName}`, {
+                headers: {
+                    'Client-ID': 'gp762nuuoqcoxypju8c569th9wz7q5',
+                    'Authorization': 'Bearer m15k59400wm8tosv4499famn76qpr3'
+                }
+            });
+
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                if (userData.data && userData.data.length > 0) {
+                    const channelId = userData.data[0].id;
+
+                    // Now get the channel badges
+                    const badgesResponse = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${channelId}`, {
+                        headers: {
+                            'Client-ID': 'gp762nuuoqcoxypju8c569th9wz7q5',
+                            'Authorization': 'Bearer m15k59400wm8tosv4499famn76qpr3'
+                        }
+                    });
+
+                    if (badgesResponse.ok) {
+                        const badgesData = await badgesResponse.json();
+                        console.log(`Channel badges response for ${channelName}:`, badgesData);
+
+                        if (badgesData.data) {
+                            const channelBadgeSets = new Map();
+
+                            badgesData.data.forEach(badgeSet => {
+                                const setId = badgeSet.set_id;
+                                const versions = new Map();
+
+                                badgeSet.versions.forEach(version => {
+                                    versions.set(version.id, {
+                                        id: version.id,
+                                        title: version.title,
+                                        description: version.description,
+                                        imageUrl1x: version.image_url_1x,
+                                        imageUrl2x: version.image_url_2x,
+                                        imageUrl4x: version.image_url_4x,
+                                        clickAction: version.click_action,
+                                        clickUrl: version.click_url
+                                    });
+                                });
+
+                                channelBadgeSets.set(setId, versions);
+                            });
+
+                            this.channelBadges.set(channelName, channelBadgeSets);
+                            console.log(`Loaded ${channelBadgeSets.size} badge sets for ${channelName}`);
+                        }
+                    } else {
+                        console.warn(`Failed to load channel badges for ${channelName}:`, badgesResponse.status);
+                    }
+                }
+            } else {
+                console.warn(`Failed to get channel ID for ${channelName}:`, userResponse.status);
+            }
+        } catch (error) {
+            console.error(`Error loading channel badges for ${channelName}:`, error);
         }
     }
 
@@ -375,6 +867,36 @@ class ModDeckApp {
                 input.placeholder = this.translate('Type a message...');
             }
         });
+
+        // Update elements with data-translate attributes
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
+            if (key) {
+                element.textContent = this.translate(key);
+            }
+        });
+
+        // Update elements with data-translate-placeholder attributes
+        document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-translate-placeholder');
+            if (key) {
+                element.placeholder = this.translate(key);
+            }
+        });
+
+        // The tab elements are now handled by data-translate attributes, so this is no longer needed
+
+        // Most elements are now handled by data-translate attributes
+        // Only keep essential ones that can't use data-translate
+
+        // Update status bar elements
+        const messageCount = document.getElementById('message-count');
+        if (messageCount && messageCount.textContent.includes('total messages')) {
+            const count = messageCount.textContent.match(/\d+/);
+            if (count) {
+                messageCount.textContent = `${count[0]} ${this.translate('total messages')}`;
+            }
+        }
     }
 
     checkForSavedLogin() {
@@ -581,20 +1103,23 @@ class ModDeckApp {
 
     // Update mentions counter
     updateMentionsCounter() {
-        const counter = document.getElementById('mentions-count');
-        if (!counter) {
-            console.warn('Mentions counter element not found in DOM');
-            return;
-        }
+        // Add delay to ensure DOM is ready
+        setTimeout(() => {
+            const counter = document.getElementById('mentions-count');
+            if (!counter) {
+                console.warn('Mentions counter element not found in DOM');
+                return;
+            }
 
-        const count = this.allMentions.length;
+            const count = this.allMentions.length;
 
-        if (count > 0) {
-            counter.textContent = count > 99 ? '99+' : count;
-            counter.classList.remove('hidden');
-        } else {
-            counter.classList.add('hidden');
-        }
+            if (count > 0) {
+                counter.textContent = count > 99 ? '99+' : count;
+                counter.classList.remove('hidden');
+            } else {
+                counter.classList.add('hidden');
+            }
+        }, 10);
     }
 
     // Render mentions list
@@ -693,6 +1218,12 @@ class ModDeckApp {
         if (tabName === 'modlog') {
             this.showModLog = true;
             this.updateModLogUI();
+            // Clear mod log notification when accessing the tab
+            const modlogCounter = document.getElementById('modlog-count');
+            if (modlogCounter) {
+                modlogCounter.classList.add('hidden');
+                modlogCounter.textContent = '0';
+            }
         } else {
             this.showModLog = false;
         }
@@ -828,11 +1359,21 @@ class ModDeckApp {
             });
 
             // Set up event listeners
-            client.on('connected', () => {
+            client.on('connected', async () => {
                 console.log(`Connected to ${channelName}`);
                 this.channels.get(channelName).isConnected = true;
                 this.updateChannelStatus(channelName, 'connected');
                 this.showNotification(`Connected to #${channelName}`, 'success');
+
+                // Load 7TV emotes for this specific channel when connected
+                console.log(`Loading 7TV emotes for channel: ${channelName}`);
+                await this.loadChannelSevenTVEmotes(channelName);
+                console.log(`7TV emotes loaded for ${channelName}: ${this.sevenTVEmotes.get(channelName)?.size || 0} emotes`);
+
+                // Load channel badges when connected
+                console.log(`Loading channel badges for ${channelName}`);
+                await this.loadChannelBadges(channelName);
+                console.log(`Channel badges loaded for ${channelName}: ${this.channelBadges.get(channelName)?.size || 0} badge sets`);
             });
 
             client.on('disconnected', () => {
@@ -952,6 +1493,7 @@ class ModDeckApp {
                         <div class="chat-header-status">Connecting...</div>
                     </div>
                     <div class="chat-header-actions">
+                        <button class="header-action-btn" onclick="modDeck.showPredictionMenu('${channelName}')">${this.translate('Predictions')}</button>
                         <button class="header-action-btn" onclick="modDeck.clearChannelMessages('${channelName}')">${this.translate('Clear')}</button>
                         <button class="header-action-btn" onclick="modDeck.toggleChannelFilters('${channelName}')">${this.translate('Filters')}</button>
                     </div>
@@ -1043,6 +1585,14 @@ class ModDeckApp {
 
         this.activeChannel = channelName;
         this.updateChatInputState(channelName);
+
+        // Clear any active reply when switching channels
+        if (this.replyTarget && this.replyTarget.channel !== channelName) {
+            this.clearReplyTarget();
+        }
+
+        // Re-process all messages with 7TV emotes for this channel
+        this.reprocessMessagesWithEmotes(channelName);
     }
 
     updateChannelStatus(channelName, status) {
@@ -1087,6 +1637,9 @@ class ModDeckApp {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.sendMessage(channelName);
+            } else if (e.key === 'Escape') {
+                // Cancel reply with Escape key
+                this.clearReplyTarget();
             }
         });
 
@@ -1098,7 +1651,22 @@ class ModDeckApp {
         });
     }
 
-    async sendMessage(channelName) {
+    async checkHelixAvailability() {
+        try {
+            const result = await ipcRenderer.invoke('validate-helix');
+            this.helixAvailable = result.ok;
+            if (this.helixAvailable) {
+                console.log('Helix API available - replies will use proper threading');
+            } else {
+                console.log('Helix API not available - replies will use @mentions');
+            }
+        } catch (error) {
+            console.error('Error checking Helix availability:', error);
+            this.helixAvailable = false;
+        }
+    }
+
+        async sendMessage(channelName) {
         if (!this.isLoggedIn) {
             this.showNotification('Please login to send messages', 'error');
             return;
@@ -1109,6 +1677,33 @@ class ModDeckApp {
 
         if (!message) return;
 
+        // Check if this is a reply and we have Helix API available
+        if (this.replyTarget && this.replyTarget.channel === channelName && this.helixAvailable) {
+            try {
+                // Use Helix API for proper threaded replies
+                const result = await ipcRenderer.invoke('helix-send-message', {
+                    channelLogin: channelName,
+                    message: message,
+                    replyToMessageId: this.replyTarget.messageId
+                });
+
+                if (result.success) {
+                    console.log('Reply sent successfully via Helix API');
+                    input.value = '';
+                    this.clearReplyTarget();
+                    input.style.height = 'auto';
+                    return;
+                } else {
+                    console.warn('Helix API failed, falling back to TMI:', result.error);
+                    // Fall through to TMI fallback
+                }
+            } catch (error) {
+                console.error('Helix API error, falling back to TMI:', error);
+                // Fall through to TMI fallback
+            }
+        }
+
+        // Fallback to TMI client (original method)
         const client = this.clients.get(channelName);
         if (!client) {
             this.showNotification('Not connected to channel', 'error');
@@ -1116,16 +1711,42 @@ class ModDeckApp {
         }
 
         try {
-            await client.say(`#${channelName}`, message);
-            input.value = '';
+            let finalMessage = message;
+            let replyContext = null;
 
-            // Auto-resize textarea
+            // Check if this is a reply (fallback mode)
+            if (this.replyTarget && this.replyTarget.channel === channelName) {
+                // Add @username prefix for replies (TMI fallback)
+                finalMessage = `@${this.replyTarget.username} ${message}`;
+
+                // Store reply context for when the message echoes back
+                replyContext = {
+                    username: this.replyTarget.username,
+                    message: this.replyTarget.message
+                };
+
+                // Store pending reply to detect it when it echoes back
+                const replyKey = `${channelName}:${this.twitchUsername}:${finalMessage}`;
+                this.pendingReplies.set(replyKey, replyContext);
+
+                // Clear old pending replies (cleanup)
+                setTimeout(() => {
+                    this.pendingReplies.delete(replyKey);
+                }, 15000); // 15 seconds timeout
+            }
+
+            await client.say(`#${channelName}`, finalMessage);
+
+            input.value = '';
+            this.clearReplyTarget();
             input.style.height = 'auto';
         } catch (error) {
             console.error('Error sending message:', error);
             this.showNotification('Failed to send message', 'error');
         }
     }
+
+
 
     updateChatInputState(channelName) {
         const input = document.getElementById(`input-${channelName}`);
@@ -1192,18 +1813,60 @@ class ModDeckApp {
         // Create unique message ID
         const messageId = userstate.id || `${Date.now()}-${Math.random()}`;
 
-        // Check for duplicate messages
+        // Check for duplicate messages (only check by message ID, not content)
         const existingMessage = channelData.messages.find(msg => msg.id === messageId);
         if (existingMessage) {
-            console.log('Duplicate message detected, skipping:', messageId);
+            console.log('Duplicate message ID detected, skipping:', messageId);
             return;
+        }
+
+        // Additional check for self-messages to prevent duplicates (only check by ID)
+        if (self) {
+            const recentSelfMessage = channelData.messages.find(msg =>
+                msg.id === messageId && msg.isSelf
+            );
+            if (recentSelfMessage) {
+                console.log('Recent self-message ID detected, skipping:', messageId);
+                return;
+            }
+        }
+
+                // Check if this message is a reply (starts with @username)
+        const replyMatch = message.match(/^@(\w+)\s+(.+)$/);
+        let replyTo = null;
+        let actualMessage = message;
+
+        // First, check if this is a pending reply we sent
+        const replyKey = `${channelName}:${userstate['display-name'] || userstate.username}:${message}`;
+        if (this.pendingReplies.has(replyKey)) {
+            replyTo = this.pendingReplies.get(replyKey);
+            actualMessage = replyMatch ? replyMatch[2] : message;
+            this.pendingReplies.delete(replyKey); // Remove from pending
+        } else if (replyMatch) {
+            const replyUsername = replyMatch[1];
+            actualMessage = replyMatch[2];
+
+            // Find the most recent message from the replied-to user in this channel
+            const recentMessages = channelData.messages
+                .filter(msg => msg.username.toLowerCase() === replyUsername.toLowerCase())
+                .slice(-5); // Last 5 messages from that user
+
+            if (recentMessages.length > 0) {
+                const targetMessage = recentMessages[recentMessages.length - 1];
+                replyTo = {
+                    username: targetMessage.username,
+                    message: targetMessage.message.length > 50
+                        ? targetMessage.message.substring(0, 50) + '...'
+                        : targetMessage.message
+                };
+            }
         }
 
         // Create message object
         const messageObj = {
             id: messageId,
             username: userstate['display-name'] || userstate.username,
-            message: message,
+            message: actualMessage, // Use the message without @username prefix
             timestamp: new Date(),
             userstate: userstate,
             channel: channelName,
@@ -1212,7 +1875,8 @@ class ModDeckApp {
             isMention: this.checkIfMention(message),
             role: this.getUserRole(userstate),
             isSelf: self,
-            recurrentCount: 0
+            recurrentCount: 0,
+            replyTo: replyTo
         };
 
         // Update recurrent/spam tracking
@@ -1271,12 +1935,12 @@ class ModDeckApp {
 
             const badgeImageUrl = this.getBadgeImageUrl(badgeType, version, channelName);
 
-            // Only add badge if it uses a local image (not external URL)
-            if (badgeImageUrl.startsWith('images/badges/')) {
+            // Add badge if we have a valid URL (API or local)
+            if (badgeImageUrl) {
                 const badgeInfo = {
                     type: badgeType,
                     version: version,
-                    title: this.getBadgeTitle(badgeType, version),
+                    title: this.getBadgeTitle(badgeType, version, channelName),
                     imageUrl: badgeImageUrl
                 };
                 badgeList.push(badgeInfo);
@@ -1286,7 +1950,27 @@ class ModDeckApp {
         return badgeList;
     }
 
-    getBadgeTitle(badgeType, version) {
+    getBadgeTitle(badgeType, version, channelName) {
+        // Check if we have channel-specific badges first
+        const channelBadgeSets = this.channelBadges.get(channelName);
+        if (channelBadgeSets && channelBadgeSets.has(badgeType)) {
+            const versions = channelBadgeSets.get(badgeType);
+            if (versions && versions.has(version)) {
+                const badgeData = versions.get(version);
+                return badgeData.title || badgeType;
+            }
+        }
+
+        // Check global badges
+        if (this.globalBadges.has(badgeType)) {
+            const versions = this.globalBadges.get(badgeType);
+            if (versions && versions.has(version)) {
+                const badgeData = versions.get(version);
+                return badgeData.title || badgeType;
+            }
+        }
+
+        // Fallback to local titles
         const titles = {
             'broadcaster': 'Broadcaster',
             'moderator': 'Moderator',
@@ -1301,9 +1985,9 @@ class ModDeckApp {
             'partner': 'Verified Partner',
             'verified': 'Verified',
             'no_audio': 'No Audio',
-			'no-audio': 'No Audio',
+            'no-audio': 'No Audio',
             'no-video': 'No Video',
-			'no_video': 'No Video',
+            'no_video': 'No Video',
             'dj': 'DJ',
             'ambassador': 'Ambassador',
             'anonymous-cheerer': 'Anonymous Cheerer',
@@ -1335,7 +2019,7 @@ class ModDeckApp {
             'clip-the-hall': 'Clip the Hall',
             'raging-wolf-helm': 'Raging Wolf',
             'gone-bananas': 'Gone Bananas',
-            'speedons-5': 'Speedons 5',
+            'speedons-5-badge': 'Speedons 5',
             'elden-ring-wylder': 'Elden Ring Wylder',
             'elden-ring-recluse': 'Elden Ring Recluse',
             'glhf': 'GLHF',
@@ -1345,7 +2029,28 @@ class ModDeckApp {
     }
 
     getBadgeImageUrl(badgeType, version, channelName) {
-        // Use local badge images from the images directory (like the HTML example)
+        // Check if we have channel-specific badges first
+        const channelBadgeSets = this.channelBadges.get(channelName);
+        if (channelBadgeSets && channelBadgeSets.has(badgeType)) {
+            const versions = channelBadgeSets.get(badgeType);
+            if (versions && versions.has(version)) {
+                const badgeData = versions.get(version);
+                console.log(`Found channel badge for ${badgeType} v${version}:`, badgeData);
+                return badgeData.imageUrl2x || badgeData.imageUrl1x;
+            }
+        }
+
+        // Check global badges
+        if (this.globalBadges.has(badgeType)) {
+            const versions = this.globalBadges.get(badgeType);
+            if (versions && versions.has(version)) {
+                const badgeData = versions.get(version);
+                console.log(`Found global badge for ${badgeType} v${version}:`, badgeData);
+                return badgeData.imageUrl2x || badgeData.imageUrl1x;
+            }
+        }
+
+        // Fallback to local images
         const badgeMapping = {
             'broadcaster': 'images/badges/broadcaster.png',
             'moderator': 'images/badges/moderator.png',
@@ -1360,9 +2065,9 @@ class ModDeckApp {
             'partner': 'images/badges/verified.png',
             'verified': 'images/badges/verified.png',
             'no-audio': 'images/badges/no-audio.png',
-			'no_audio': 'images/badges/no-audio.png',
+            'no_audio': 'images/badges/no-audio.png',
             'no-video': 'images/badges/listen.png',
-			'no_video': 'images/badges/listen.png',
+            'no_video': 'images/badges/listen.png',
             'dj': 'images/badges/dj.png',
             'ambassador': 'images/badges/ambassador.png',
             'anonymous-cheerer': 'images/badges/anonymous-cheerer.png',
@@ -1395,13 +2100,14 @@ class ModDeckApp {
             'clip-the-hall': 'images/badges/clip-the-hall.png',
             'raging-wolf-helm': 'images/badges/raging-wolf.png',
             'gone-bananas': 'images/badges/banana.png',
-            'speedons-5': 'images/badges/speedons-5.png',
+            'speedons-5-badge': 'images/badges/speedons-5.png',
             'elden-ring-wylder': 'images/badges/elden-ring-wylder.png',
             'elden-ring-recluse': 'images/badges/elden-ring-recluse.png',
             'glhf': 'images/badges/GLHF.png',
             'glitchcon': 'images/badges/Glitchcon.png'
         };
 
+        console.log(`No API badge found for ${badgeType} v${version}, falling back to local image`);
         return badgeMapping[badgeType] || `images/badges/${badgeType}.png`;
     }
 
@@ -1655,9 +2361,8 @@ class ModDeckApp {
         messageEl.className = `chat-message ${messageObj.isMention ? 'mention' : ''}`;
         messageEl.dataset.username = messageObj.username.toLowerCase();
         messageEl.dataset.role = messageObj.role;
-        if (messageObj.userstate?.id) {
-            messageEl.dataset.messageId = messageObj.userstate.id;
-        }
+        const messageId = messageObj.userstate?.id || messageObj.id || `fallback-${Date.now()}-${Math.random()}`;
+        messageEl.dataset.messageId = messageId;
 
         // Enable text selection
         messageEl.style.userSelect = 'text';
@@ -1670,6 +2375,46 @@ class ModDeckApp {
 
         // Process message with emotes
         const processedMessage = this.processMessageEmotes(messageObj.message, messageObj.userstate, messageObj.channel);
+
+                // Debug: Check if 7TV emotes are loaded
+        if (messageObj.message.includes('catsittingverycomfortablearoundacampfirewithitsfriends')) {
+            console.log('7TV Debug - Message contains 7TV emote name');
+            console.log('Global 7TV emotes loaded:', this.globalSevenTVEmotes.size);
+            console.log('Channel 7TV emotes loaded:', this.sevenTVEmotes.get(messageObj.channel)?.size || 0);
+
+            // Check if the specific emote is loaded
+            const channelEmotes = this.sevenTVEmotes.get(messageObj.channel);
+            if (channelEmotes && channelEmotes.has('catsittingverycomfortablearoundacampfirewithitsfriends')) {
+                const emote = channelEmotes.get('catsittingverycomfortablearoundacampfirewithitsfriends');
+                console.log('7TV Debug - Emote found in channel emotes:', emote);
+
+                // Debug the URL processing
+                if (emote.urls && Array.isArray(emote.urls)) {
+                    console.log('7TV Debug - Emote URLs:', emote.urls);
+                    const imageUrl = emote.urls.find(url => url.includes('2x.webp')) ||
+                                    emote.urls.find(url => url.includes('1x.webp')) ||
+                                    emote.urls[0];
+                    console.log('7TV Debug - Selected image URL:', imageUrl);
+                    if (imageUrl) {
+                        const fullUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
+                        console.log('7TV Debug - Full URL:', fullUrl);
+                    }
+                }
+            } else {
+                console.log('7TV Debug - Emote NOT found in channel emotes');
+
+                // Check global emotes
+                if (this.globalSevenTVEmotes.has('catsittingverycomfortablearoundacampfirewithitsfriends')) {
+                    const emote = this.globalSevenTVEmotes.get('catsittingverycomfortablearoundacampfirewithitsfriends');
+                    console.log('7TV Debug - Emote found in global emotes:', emote);
+                } else {
+                    console.log('7TV Debug - Emote NOT found in global emotes either');
+                }
+            }
+
+            console.log('Original message:', messageObj.message);
+            console.log('Processed message:', processedMessage);
+        }
 
         // Create timestamp
         const timestamp = this.settings.showTimestamps ?
@@ -1684,11 +2429,25 @@ class ModDeckApp {
             ? `<span class="recurrent-badge" title="Similar messages recently">Recurrent x${messageObj.recurrentCount}</span>`
             : '';
 
+        // Reply context if this is a reply
+        const replyContext = messageObj.replyTo ? `
+            <div class="reply-context">
+                <span class="reply-to-user">@${messageObj.replyTo.username}</span>
+                <span class="reply-to-message">${messageObj.replyTo.message}</span>
+            </div>
+        ` : '';
+
         messageEl.innerHTML = `
             ${timestamp}
+            <div class="message-actions">
+                <button class="reply-btn ${messageId.includes('fallback-') || messageId.includes('-0.') ? 'disabled' : ''}"
+                        data-translate="Reply"
+                        title="${messageId.includes('fallback-') || messageId.includes('-0.') ? 'Cannot reply to old messages' : this.translate('Reply')}">↵</button>
+            </div>
             <div class="message-content">
+                ${replyContext}
                 <div class="user-info">
-                    <div class="badges">${badgesHtml}</div>
+                    <span class="badges">${badgesHtml}</span>
                     <span class="username" style="${userColor ? `color: ${userColor}` : ''}">${messageObj.username}</span>
                     ${recurrentBadge}
                 </div>
@@ -1696,13 +2455,184 @@ class ModDeckApp {
             </div>
         `;
 
+        // Add reply class if this is a reply
+        if (messageObj.replyTo) {
+            messageEl.classList.add('reply');
+        }
+
         // Context menu for moderation actions
         messageEl.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.openMessageContextMenu(e, messageObj);
         });
 
+        // Reply button functionality - use event delegation since innerHTML replaces elements
+        messageEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('reply-btn')) {
+                e.stopPropagation();
+                // Get the message ID and text from the DOM element to ensure accuracy
+                const messageId = messageEl.dataset.messageId;
+                const username = messageEl.dataset.username;
+
+                // Get the message text from the DOM element
+                const messageTextElement = messageEl.querySelector('.message-text');
+                const messageText = messageTextElement ? messageTextElement.textContent.trim() : messageObj.message;
+
+                // Create a reliable message object for reply
+                const replyMessageObj = {
+                    ...messageObj,
+                    userstate: { id: messageId },
+                    id: messageId,
+                    username: username,
+                    message: messageText,
+                    channel: messageObj.channel
+                };
+
+                console.log('Reply target from DOM:', {
+                    messageId,
+                    username,
+                    messageText,
+                    element: messageEl
+                });
+
+                if (!messageId) {
+                    console.warn('Cannot reply: message ID is undefined');
+                    this.showNotification('Cannot reply: message ID missing', 'error');
+                    return;
+                }
+
+                // Check if this is a fallback ID (not a real Twitch message ID)
+                if (messageId.includes('fallback-') || messageId.includes('-0.')) {
+                    console.warn('Cannot reply to message with fallback ID:', messageId);
+                    this.showNotification('Cannot reply to old messages (no Twitch ID)', 'warning');
+                    return;
+                }
+
+                this.setReplyTarget(replyMessageObj);
+            }
+        });
+
         return messageEl;
+    }
+
+    // Helper function to find message by ID across all channels
+    findMessageById(messageId) {
+        if (!messageId) return null;
+
+        for (const [channelName, channelData] of this.channels) {
+            const message = channelData.messages.find(msg =>
+                (msg.userstate?.id === messageId) || (msg.id === messageId)
+            );
+            if (message) {
+                return message;
+            }
+        }
+        return null;
+    }
+
+    // ===== Reply Functionality =====
+    setReplyTarget(messageObj) {
+        // Use the actual Twitch message ID from userstate for Helix API compatibility
+        const twitchMessageId = messageObj.userstate?.id || messageObj.id;
+
+        this.replyTarget = {
+            username: messageObj.username,
+            message: messageObj.message,
+            channel: messageObj.channel,
+            messageId: twitchMessageId
+        };
+
+        console.log('Reply target set:', {
+            username: this.replyTarget.username,
+            messageId: twitchMessageId,
+            helixAvailable: this.helixAvailable
+        });
+
+        // Show reply indicator in the current channel's input area
+        this.showReplyIndicator();
+    }
+
+    showReplyIndicator() {
+        if (!this.replyTarget) {
+            console.warn('showReplyIndicator called but no replyTarget set');
+            return;
+        }
+
+        console.log('Showing reply indicator for:', this.replyTarget);
+
+        // Get the current channel's input container
+        const currentChannel = this.activeChannel;
+        if (!currentChannel) {
+            console.warn('No active channel for reply indicator');
+            return;
+        }
+
+        // Find the active panel and its input section
+        const activePanel = document.querySelector(`.tab-panel[data-channel="${currentChannel}"].active`);
+        if (!activePanel) {
+            console.warn('Active panel not found for channel:', currentChannel);
+            return;
+        }
+
+        const inputContainer = activePanel.querySelector('.chat-input-section');
+        if (!inputContainer) {
+            console.warn('Input container not found in active panel');
+            return;
+        }
+
+        // Remove any existing reply indicator
+        this.clearReplyIndicator();
+
+        // Create reply indicator
+        const replyIndicator = document.createElement('div');
+        replyIndicator.className = 'reply-indicator';
+        replyIndicator.id = 'reply-indicator';
+
+        const replyMode = this.helixAvailable ? '🧵 Threaded Reply' : '📝 @Mention Reply';
+        const replyModeTitle = this.helixAvailable
+            ? 'Using Twitch Reply API - creates a threaded reply'
+            : 'Using @mention fallback - Helix API not configured';
+
+        replyIndicator.innerHTML = `
+            <div class="reply-text">
+                <span class="reply-mode" title="${replyModeTitle}" style="font-size: 10px; opacity: 0.7; margin-right: 6px;">${replyMode}</span>
+                <span class="reply-to" data-translate="Replying to">${this.translate('Replying to')}</span>
+                <span class="reply-to-user">@${this.replyTarget.username}:</span>
+                <span class="reply-message" title="Message ID: ${this.replyTarget.messageId}">${this.replyTarget.message}</span>
+                <span class="reply-id" style="font-size: 9px; opacity: 0.5; margin-left: 8px;">[ID: ${this.replyTarget.messageId?.substring(0, 8)}...]</span>
+            </div>
+            <button class="cancel-reply" data-translate="Cancel Reply" title="${this.translate('Cancel Reply')}">×</button>
+        `;
+
+        // Add event listener for cancel button
+        const cancelBtn = replyIndicator.querySelector('.cancel-reply');
+        cancelBtn.addEventListener('click', () => {
+            this.clearReplyTarget();
+        });
+
+        // Insert before the input area
+        const inputRow = inputContainer.querySelector('.chat-input-container');
+        if (inputRow) {
+            inputContainer.insertBefore(replyIndicator, inputRow);
+        }
+
+        // Focus the input
+        const chatInput = inputContainer.querySelector('.chat-input');
+        if (chatInput) {
+            chatInput.focus();
+        }
+    }
+
+    clearReplyIndicator() {
+        const replyIndicator = document.getElementById('reply-indicator');
+        if (replyIndicator) {
+            replyIndicator.remove();
+        }
+    }
+
+    clearReplyTarget() {
+        this.replyTarget = null;
+        this.clearReplyIndicator();
     }
 
     // ===== Moderation & Context Menu =====
@@ -1731,19 +2661,71 @@ class ModDeckApp {
             menu.appendChild(item);
         };
 
-        const canAct = this.isLoggedIn && !!this.clients.get(channelName);
-        addItem('Delete message', async () => this.deleteMessage(channelName, realMsgId), !canAct || !realMsgId);
+                const canAct = this.isLoggedIn && !!this.clients.get(channelName);
+
+        addItem('Copy message', async () => this.copyMessageText(messageObj));
+        addItem('Delete message', async () => this.deleteMessage(channelName, realMsgId, username), !canAct || !realMsgId);
         addItem('Timeout User...', async () => this.showTimeoutDialog(channelName, username), !canAct);
         addItem('Ban User...', async () => this.showBanDialog(channelName, username), !canAct);
         addItem('Unban', async () => this.unbanUser(channelName, username), !canAct);
         addItem('View history', async () => this.showUserHistory(channelName, username));
 
-        // Position near cursor
+        // Position near cursor with viewport bounds checking
         const x = event.clientX;
         const y = event.clientY;
-        menu.style.left = `${x}px`;
-        menu.style.top = `${y}px`;
+
+        // Add menu to DOM first to get its dimensions
         document.body.appendChild(menu);
+
+        // Get menu dimensions and viewport size
+        const menuRect = menu.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Calculate final position ensuring menu stays within viewport
+        let finalX = x;
+        let finalY = y;
+
+        // Check right edge - if not enough space to the right, position to the left of cursor
+        if (x + menuRect.width > viewportWidth) {
+            if (x - menuRect.width > 10) {
+                // Position to the left of cursor if there's enough space
+                finalX = x - menuRect.width;
+            } else {
+                // Otherwise, position at right edge with margin
+                finalX = viewportWidth - menuRect.width - 10;
+            }
+        }
+
+        // Check bottom edge - if not enough space below, position above cursor
+        if (y + menuRect.height > viewportHeight) {
+            if (y - menuRect.height > 10) {
+                // Position above cursor if there's enough space
+                finalY = y - menuRect.height;
+            } else {
+                // Otherwise, position at bottom with margin
+                finalY = viewportHeight - menuRect.height - 10;
+            }
+        }
+
+        // Ensure menu doesn't go off the left or top
+        finalX = Math.max(10, finalX);
+        finalY = Math.max(10, finalY);
+
+        // If menu is still too large for viewport, scale it down
+        if (menuRect.width > viewportWidth - 20) {
+            menu.style.maxWidth = `${viewportWidth - 20}px`;
+            menu.style.width = `${viewportWidth - 20}px`;
+        }
+
+        if (menuRect.height > viewportHeight - 20) {
+            menu.style.maxHeight = `${viewportHeight - 20}px`;
+            menu.style.overflowY = 'auto';
+        }
+
+        // Apply final position
+        menu.style.left = `${finalX}px`;
+        menu.style.top = `${finalY}px`;
 
         // Click outside to close
         const close = (e) => {
@@ -1768,33 +2750,49 @@ class ModDeckApp {
         return client;
     }
 
-    async deleteMessage(channelName, messageId) {
+    async deleteMessage(channelName, messageId, username) {
         if (!messageId) {
             this.showNotification('Cannot delete: missing message id', 'error');
             return;
         }
 
-        // Find the message element to mark as deleted
+        // Find the message element
         const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-        if (messageElement) {
-            this.markMessageAsDeleted(messageElement);
-        }
 
         // Prefer Helix if configured
-        const helixOk = await this.tryHelix('mod-delete-message', { channelLogin: channelName, messageId }, 'Message deleted');
-        if (helixOk) return;
+        const helixResult = await this.tryHelix('mod-delete-message', { channelLogin: channelName, messageId, username }, 'Message deleted');
+        if (helixResult.success) {
+            // Only mark as deleted if Helix succeeded
+            if (messageElement) {
+                this.markMessageAsDeleted(messageElement);
+            }
+            return;
+        }
+
+        // If it's a permission error, don't try fallback methods
+        if (helixResult.isPermissionError) {
+            return;
+        }
 
         const client = this.getModerationClient(channelName);
         if (!client) return;
         try {
             await client.deletemessage(`#${channelName}`, messageId);
             this.showNotification('Message deleted', 'success');
+            // Mark as deleted only if TMI succeeded
+            if (messageElement) {
+                this.markMessageAsDeleted(messageElement);
+            }
         } catch (error) {
             console.error('Delete message failed:', error);
             // Fallback: send slash command directly
             try {
                 await client.say(`#${channelName}`, `/delete ${messageId}`);
                 this.showNotification('Delete requested', 'info');
+                // Mark as deleted since we attempted it
+                if (messageElement) {
+                    this.markMessageAsDeleted(messageElement);
+                }
             } catch (e2) {
                 console.error('Fallback delete failed:', e2);
                 this.showNotification('Failed to delete message', 'error');
@@ -1832,27 +2830,50 @@ class ModDeckApp {
             messageContent.style.textDecoration = 'line-through';
             messageContent.style.color = '#adadb8';
         }
+
+        // Mark the message as deleted in the data
+        const messageId = messageElement.getAttribute('data-message-id');
+        if (messageId) {
+            // Find and mark the message in all channel data
+            for (const [channelName, channelData] of this.channels) {
+                const message = channelData.messages.find(m => m.userstate?.id === messageId);
+                if (message) {
+                    message.deleted = true;
+                    break;
+                }
+            }
+        }
     }
 
     async timeoutUser(channelName, username, seconds, reason = 'ModDeck timeout') {
-        // Mark all messages from this user as timed out
-        this.markUserAsTimedOut(channelName, username, seconds);
-
         // Prefer Helix if configured
-        const helixOk = await this.tryHelix('mod-timeout', { channelLogin: channelName, targetLogin: username, seconds, reason }, `Timed out ${username} for ${Math.floor(seconds/60)}m`);
-        if (helixOk) return;
+        const helixResult = await this.tryHelix('mod-timeout', { channelLogin: channelName, targetLogin: username, seconds, reason }, `Timed out ${username} for ${Math.floor(seconds/60)}m`);
+        if (helixResult.success) {
+            // Only mark as timed out if Helix succeeded
+            this.markUserAsTimedOut(channelName, username, seconds);
+            return;
+        }
+
+        // If it's a permission error, don't try fallback methods
+        if (helixResult.isPermissionError) {
+            return;
+        }
 
         const client = this.getModerationClient(channelName);
         if (!client) return;
         try {
             await client.timeout(`#${channelName}`, username, seconds, reason);
             this.showNotification(`Timed out ${username} for ${Math.floor(seconds/60)}m`, 'success');
+            // Mark as timed out only if TMI succeeded
+            this.markUserAsTimedOut(channelName, username, seconds);
         } catch (error) {
             console.error('Timeout failed:', error);
             // Fallback: slash command
             try {
                 await client.say(`#${channelName}`, `/timeout ${username} ${seconds} ${reason}`);
                 this.showNotification('Timeout requested', 'info');
+                // Mark as timed out since we attempted it
+                this.markUserAsTimedOut(channelName, username, seconds);
             } catch (e2) {
                 console.error('Fallback timeout failed:', e2);
                 this.showNotification('Failed to timeout user', 'error');
@@ -1892,24 +2913,34 @@ class ModDeckApp {
     }
 
     async banUser(channelName, username, reason = 'ModDeck ban') {
-        // Mark all messages from this user as banned
-        this.markUserAsBanned(channelName, username);
-
         // Prefer Helix if configured
-        const helixOk = await this.tryHelix('mod-ban', { channelLogin: channelName, targetLogin: username, reason }, `Banned ${username}`);
-        if (helixOk) return;
+        const helixResult = await this.tryHelix('mod-ban', { channelLogin: channelName, targetLogin: username, reason }, `Banned ${username}`);
+        if (helixResult.success) {
+            // Only mark as banned if Helix succeeded
+            this.markUserAsBanned(channelName, username);
+            return;
+        }
+
+        // If it's a permission error, don't try fallback methods
+        if (helixResult.isPermissionError) {
+            return;
+        }
 
         const client = this.getModerationClient(channelName);
         if (!client) return;
         try {
             await client.ban(`#${channelName}`, username, reason);
             this.showNotification(`Banned ${username}`, 'success');
+            // Mark as banned only if TMI succeeded
+            this.markUserAsBanned(channelName, username);
         } catch (error) {
             console.error('Ban failed:', error);
             // Fallback: slash command
             try {
                 await client.say(`#${channelName}`, `/ban ${username} ${reason}`);
                 this.showNotification('Ban requested', 'info');
+                // Mark as banned since we attempted it
+                this.markUserAsBanned(channelName, username);
             } catch (e2) {
                 console.error('Fallback ban failed:', e2);
                 this.showNotification('Failed to ban user', 'error');
@@ -1949,24 +2980,34 @@ class ModDeckApp {
     }
 
     async unbanUser(channelName, username) {
-        // Remove ban indicators from user's messages
-        this.markUserAsUnbanned(channelName, username);
-
         // Prefer Helix if configured
-        const helixOk = await this.tryHelix('mod-unban', { channelLogin: channelName, targetLogin: username }, `Unbanned ${username}`);
-        if (helixOk) return;
+        const helixResult = await this.tryHelix('mod-unban', { channelLogin: channelName, targetLogin: username }, `Unbanned ${username}`);
+        if (helixResult.success) {
+            // Only remove ban indicators if Helix succeeded
+            this.markUserAsUnbanned(channelName, username);
+            return;
+        }
+
+        // If it's a permission error, don't try fallback methods
+        if (helixResult.isPermissionError) {
+            return;
+        }
 
         const client = this.getModerationClient(channelName);
         if (!client) return;
         try {
             await client.unban(`#${channelName}`, username);
             this.showNotification(`Unbanned ${username}`, 'success');
+            // Remove ban indicators only if TMI succeeded
+            this.markUserAsUnbanned(channelName, username);
         } catch (error) {
             console.error('Unban failed:', error);
             // Fallback: slash command
             try {
                 await client.say(`#${channelName}`, `/unban ${username}`);
                 this.showNotification('Unban requested', 'info');
+                // Remove ban indicators since we attempted it
+                this.markUserAsUnbanned(channelName, username);
             } catch (e2) {
                 console.error('Fallback unban failed:', e2);
                 this.showNotification('Failed to unban user', 'error');
@@ -1991,6 +3032,245 @@ class ModDeckApp {
         });
     }
 
+    showPredictionMenu(channelName) {
+        // Create prediction management modal
+        const modalId = 'prediction-menu-modal';
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3>Prediction Management - #${channelName}</h3>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="prediction-menu-section">
+                        <h4>Create New Prediction</h4>
+                        <div class="prediction-requirements">
+                            <p><strong>Requirements:</strong> Channel Points must be enabled and you need broadcaster/moderator permissions.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-prediction-title">Prediction Title:</label>
+                            <input type="text" id="new-prediction-title" placeholder="Will I win this game?" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-prediction-outcome1">Outcome 1:</label>
+                            <input type="text" id="new-prediction-outcome1" placeholder="Yes" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-prediction-outcome2">Outcome 2:</label>
+                            <input type="text" id="new-prediction-outcome2" placeholder="No" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-prediction-duration">Duration (seconds):</label>
+                            <input type="number" id="new-prediction-duration" value="60" min="30" max="1800" required>
+                        </div>
+                        <button class="btn btn-primary" onclick="modDeck.createPrediction('${channelName}')">Create Prediction</button>
+                    </div>
+
+                    <div class="prediction-menu-separator"></div>
+
+                    <div class="prediction-menu-section">
+                        <h4>Current Prediction</h4>
+                        <div id="current-prediction-info">
+                            <p>No active prediction</p>
+                        </div>
+                        <div class="prediction-actions" id="prediction-actions" style="display: none;">
+                            <button class="btn btn-success" onclick="modDeck.endPrediction('${channelName}', 'outcome1')">End with Outcome 1</button>
+                            <button class="btn btn-success" onclick="modDeck.endPrediction('${channelName}', 'outcome2')">End with Outcome 2</button>
+                            <button class="btn btn-danger" onclick="modDeck.cancelPrediction('${channelName}')">Cancel Prediction</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        this.openModal(modalId);
+
+        // Check for current prediction
+        this.checkCurrentPrediction(channelName);
+    }
+
+    async showPredictionDialog(channelName) {
+        // Create modal for prediction creation
+        const modalId = 'prediction-modal';
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create Prediction</h3>
+                    <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="prediction-title">Prediction Title:</label>
+                        <input type="text" id="prediction-title" placeholder="Will I win this game?" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prediction-outcome1">Outcome 1:</label>
+                        <input type="text" id="prediction-outcome1" placeholder="Yes" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prediction-outcome2">Outcome 2:</label>
+                        <input type="text" id="prediction-outcome2" placeholder="No" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prediction-duration">Duration (seconds):</label>
+                        <input type="number" id="prediction-duration" value="60" min="30" max="1800" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn btn-primary" onclick="window.modDeckApp.createPrediction('${channelName}')">Create Prediction</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        this.openModal(modalId);
+    }
+
+    async createPrediction(channelName) {
+        try {
+            const title = document.getElementById('new-prediction-title').value.trim();
+            const outcome1 = document.getElementById('new-prediction-outcome1').value.trim();
+            const outcome2 = document.getElementById('new-prediction-outcome2').value.trim();
+            const duration = parseInt(document.getElementById('new-prediction-duration').value);
+
+            if (!title || !outcome1 || !outcome2 || !duration) {
+                this.showNotification('Please fill in all fields', 'error');
+                return;
+            }
+
+            // Use the existing Helix infrastructure
+            const result = await this.tryHelix('create-prediction', {
+                channelLogin: channelName,
+                title: title,
+                outcomes: [outcome1, outcome2],
+                duration: duration
+            }, `Created prediction: ${title}`);
+
+            if (result.success) {
+                this.showNotification('Prediction created successfully', 'success');
+                // Clear form
+                document.getElementById('new-prediction-title').value = '';
+                document.getElementById('new-prediction-outcome1').value = '';
+                document.getElementById('new-prediction-outcome2').value = '';
+                document.getElementById('new-prediction-duration').value = '60';
+                // Refresh current prediction info
+                this.checkCurrentPrediction(channelName);
+            } else {
+                // Check for specific error messages
+                let errorMessage = 'Failed to create prediction.';
+                if (result && result.error) {
+                    if (result.error.includes('channel points not enabled')) {
+                        errorMessage = 'Channel Points must be enabled to create predictions. Go to Creator Dashboard > Settings > Community > Channel Points and enable them.';
+                    } else if (result.error.includes('403')) {
+                        errorMessage = 'Permission denied. Make sure you have broadcaster or moderator permissions and proper Helix token.';
+                    } else {
+                        errorMessage = `Failed to create prediction: ${result.error}`;
+                    }
+                }
+                this.showNotification(errorMessage, 'error');
+            }
+        } catch (error) {
+            console.error('Create prediction failed:', error);
+            this.showNotification('Failed to create prediction: ' + error.message, 'error');
+        }
+    }
+
+    async endPrediction(channelName, winningOutcome) {
+        try {
+            // Use the existing Helix infrastructure
+            const result = await this.tryHelix('end-prediction', {
+                channelLogin: channelName,
+                winningOutcome: winningOutcome
+            }, `Ended prediction with ${winningOutcome}`);
+
+            if (result.success) {
+                this.showNotification('Prediction ended successfully', 'success');
+                // Refresh current prediction info
+                this.checkCurrentPrediction(channelName);
+            } else {
+                this.showNotification('Failed to end prediction. Check Helix configuration.', 'error');
+            }
+        } catch (error) {
+            console.error('End prediction failed:', error);
+            this.showNotification('Failed to end prediction: ' + error.message, 'error');
+        }
+    }
+
+    async cancelPrediction(channelName) {
+        try {
+            // Use the existing Helix infrastructure
+            const result = await this.tryHelix('cancel-prediction', {
+                channelLogin: channelName
+            }, `Cancelled prediction`);
+
+            if (result.success) {
+                this.showNotification('Prediction cancelled successfully', 'success');
+                // Refresh current prediction info
+                this.checkCurrentPrediction(channelName);
+            } else {
+                this.showNotification('Failed to cancel prediction. Check Helix configuration.', 'error');
+            }
+        } catch (error) {
+            console.error('Cancel prediction failed:', error);
+            this.showNotification('Failed to cancel prediction: ' + error.message, 'error');
+        }
+    }
+
+    async checkCurrentPrediction(channelName) {
+        try {
+            // Use the existing Helix infrastructure to get current prediction
+            const result = await this.tryHelix('get-prediction', {
+                channelLogin: channelName
+            });
+
+            const infoElement = document.getElementById('current-prediction-info');
+            const actionsElement = document.getElementById('prediction-actions');
+
+            if (result && result.prediction) {
+                // Show current prediction info
+                const prediction = result.prediction;
+                infoElement.innerHTML = `
+                    <div class="current-prediction">
+                        <p><strong>Title:</strong> ${prediction.title}</p>
+                        <p><strong>Status:</strong> ${prediction.status}</p>
+                        <div class="prediction-outcomes">
+                            <div class="outcome">
+                                <strong>Outcome 1:</strong> ${prediction.outcomes[0]?.title || 'N/A'}
+                            </div>
+                            <div class="outcome">
+                                <strong>Outcome 2:</strong> ${prediction.outcomes[1]?.title || 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Show action buttons if prediction is active
+                if (prediction.status === 'ACTIVE') {
+                    actionsElement.style.display = 'block';
+                } else {
+                    actionsElement.style.display = 'none';
+                }
+            } else {
+                infoElement.innerHTML = '<p>No active prediction</p>';
+                actionsElement.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Check current prediction failed:', error);
+            const infoElement = document.getElementById('current-prediction-info');
+            if (infoElement) {
+                infoElement.innerHTML = '<p>Could not load prediction info</p>';
+            }
+        }
+    }
+
     async tryHelix(channel, payload, successMessage) {
         try {
             const result = await ipcRenderer.invoke(channel, payload);
@@ -1998,13 +3278,34 @@ class ModDeckApp {
                 if (successMessage) this.showNotification(successMessage, 'success');
                 // Log successful moderation action
                 this.logModerationAction(channel, payload, successMessage);
-                return true;
+                return { success: true };
             }
-            console.warn('Helix call returned failure:', channel, result);
-            return false;
+
+            // Show specific error message for failed actions
+            if (result && result.error) {
+                let errorMessage = result.error;
+                let isPermissionError = false;
+
+                // Handle common permission errors
+                if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+                    errorMessage = `Permission denied: You are not a moderator/broadcaster in #${payload.channelLogin || payload.channelName}`;
+                    isPermissionError = true;
+                } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+                    errorMessage = 'Authentication failed: Check your Helix API credentials';
+                    isPermissionError = true;
+                } else if (errorMessage.includes('404')) {
+                    errorMessage = 'User or channel not found';
+                }
+
+                this.showNotification(errorMessage, 'error');
+                console.warn('Helix call returned failure:', channel, result);
+
+                return { success: false, isPermissionError, error: errorMessage };
+            }
+            return { success: false };
         } catch (err) {
             console.warn('Helix call failed or not configured:', channel, err);
-            return false;
+            return { success: false };
         }
     }
 
@@ -2030,6 +3331,22 @@ class ModDeckApp {
         // Update mod log UI if visible
         if (this.showModLog) {
             this.updateModLogUI();
+        }
+
+        // Update mod log counter
+        this.updateModLogCounter();
+    }
+
+    updateModLogCounter() {
+        const counter = document.getElementById('modlog-count');
+        if (counter) {
+            const count = this.moderationLog.length;
+            if (count > 0) {
+                counter.textContent = count;
+                counter.classList.remove('hidden');
+            } else {
+                counter.classList.add('hidden');
+            }
         }
     }
 
@@ -2219,29 +3536,153 @@ class ModDeckApp {
         this.showNotification('Moderation log exported successfully', 'success');
     }
 
-    async showUserHistory(channelName, username) {
+        async showUserHistory(channelName, username) {
         const channelData = this.channels.get(channelName);
         if (!channelData) return;
+
+        // Get recent messages from this user (from local storage)
         const recent = channelData.messages
             .filter(m => (m.username || '').toLowerCase() === username.toLowerCase())
             .slice(-50)
             .reverse();
 
+        // Count moderation actions against this user from local log
+        const localBanCount = this.moderationLog.filter(log =>
+            log.target && log.target.toLowerCase() === username.toLowerCase() &&
+            log.action === 'ban' && log.channel === channelName
+        ).length;
+
+        const timeoutCount = this.moderationLog.filter(log =>
+            log.target && log.target.toLowerCase() === username.toLowerCase() &&
+            log.action === 'timeout' && log.channel === channelName
+        ).length;
+
+        // Try to get user info and ban history from Twitch API
+        let twitchBanHistory = [];
+        let totalBanCount = localBanCount;
+        let userInfo = null;
+
+        try {
+            // Get ban history
+            const banResult = await ipcRenderer.invoke('get-user-ban-history', {
+                channelLogin: channelName,
+                targetLogin: username
+            });
+            if (banResult.success && banResult.data) {
+                twitchBanHistory = banResult.data;
+                totalBanCount = twitchBanHistory.length;
+            }
+
+            // Get user info
+            const userResult = await ipcRenderer.invoke('get-user-messages', {
+                channelLogin: channelName,
+                targetLogin: username
+            });
+            if (userResult.success && userResult.data) {
+                userInfo = userResult.data.userInfo;
+            }
+        } catch (error) {
+            console.log('Could not fetch Twitch data:', error);
+        }
+
+        // Get user's role and badges from recent messages
+        const recentUserInfo = recent.length > 0 ? recent[0] : null;
+        const userRole = recentUserInfo ? this.getUserRole(recentUserInfo.userstate) : 'Viewer';
+        const userColor = recentUserInfo ? this.getUserColor(recentUserInfo.userstate) : '#ffffff';
+
         const modal = document.createElement('div');
         modal.className = 'modal';
+
+        // Create user info header with Twitch API data
+        let userDisplayName = username;
+        let userCreatedAt = '';
+        let userType = '';
+
+        if (userInfo) {
+            userDisplayName = userInfo.display_name || username;
+            if (userInfo.created_at) {
+                const createdDate = new Date(userInfo.created_at);
+                userCreatedAt = createdDate.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+            }
+            userType = userInfo.type || '';
+        }
+
+        const userInfoHtml = `
+            <div style="background: rgba(145, 71, 255, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #9147ff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h4 style="margin: 0; color: ${userColor};">${userDisplayName}</h4>
+                    <div style="display: flex; gap: 8px;">
+                        <span style="background: #464649; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-transform: uppercase;">${userRole}</span>
+                        ${userType ? `<span style="background: #9147ff; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-transform: uppercase;">${userType}</span>` : ''}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 16px; font-size: 13px; opacity: 0.8; margin-bottom: 8px;">
+                    <span>📝 ${recent.length} recent messages</span>
+                </div>
+                ${userCreatedAt ? `<div style="font-size: 12px; opacity: 0.7;">📅 Account created: ${userCreatedAt}</div>` : ''}
+            </div>
+        `;
+
         const listHtml = recent.map(m => {
             const ts = m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp);
             const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            return `<div style="padding:6px 0;border-bottom:1px solid #2f2f35;">
-                <span style="opacity:0.7;margin-right:8px;">${timeStr}</span>
+            const dateStr = ts.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+            // Check if message was deleted
+            const isDeleted = m.deleted || false;
+            const deletedStyle = isDeleted ? 'opacity: 0.5; text-decoration: line-through;' : '';
+
+            return `<div style="padding: 8px 0; border-bottom: 1px solid rgba(47, 47, 53, 0.5); ${deletedStyle}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="opacity: 0.7; font-size: 12px;">${dateStr} ${timeStr}</span>
+                    ${isDeleted ? '<span style="background: #e91e63; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; text-transform: uppercase;">DELETED</span>' : ''}
+                </div>
                 <span>${this.escapeHtml(m.message)}</span>
             </div>`;
-        }).join('') || '<div style="opacity:0.7;">No recent messages</div>';
+        }).join('') || '<div style="opacity: 0.7; text-align: center; padding: 20px;">No recent messages found</div>';
+
+        // Create ban history section if available
+        let banHistoryHtml = '';
+        if (twitchBanHistory.length > 0) {
+            const banHistoryList = twitchBanHistory.map(ban => {
+                const banDate = new Date(ban.created_at);
+                const dateStr = banDate.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = banDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const reason = ban.reason || 'No reason provided';
+                const isActive = ban.expires_at ? new Date(ban.expires_at) > new Date() : true;
+
+                return `<div style="padding: 8px 0; border-bottom: 1px solid rgba(47, 47, 53, 0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="opacity: 0.7; font-size: 12px;">${dateStr} ${timeStr}</span>
+                        <span style="background: ${isActive ? '#f44336' : '#4caf50'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; text-transform: uppercase;">${isActive ? 'ACTIVE' : 'EXPIRED'}</span>
+                    </div>
+                    <span style="opacity: 0.9;">${this.escapeHtml(reason)}</span>
+                </div>`;
+            }).join('');
+
+            banHistoryHtml = `
+                <h4 style="margin: 16px 0 8px 0; color: #f44336;">Ban History (Twitch API)</h4>
+                <div style="background: rgba(244, 67, 54, 0.1); padding: 12px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 16px;">
+                    ${banHistoryList}
+                </div>
+            `;
+        }
 
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 600px; max-height: 70vh; overflow: auto;">
-                <div class="modal-header"><h3>History: ${username}</h3><button class="close-modal-btn" id="close-history">×</button></div>
-                <div class="modal-body">${listHtml}</div>
+            <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow: auto;">
+                <div class="modal-header">
+                    <h3>User History: ${username}</h3>
+                    <button class="close-modal-btn" id="close-history">×</button>
+                </div>
+                <div class="modal-body">
+                    ${userInfoHtml}
+                    ${banHistoryHtml}
+                                    <h4 style="margin: 16px 0 8px 0; color: #9147ff;">Recent Messages (Local)</h4>
+                <div style="background: rgba(145, 71, 255, 0.05); padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; opacity: 0.8;">
+                    📝 Showing messages from when ModDeck was connected. Twitch API doesn't provide historical chat data.
+                </div>
+                ${listHtml}
+                </div>
             </div>
         `;
         document.body.appendChild(modal);
@@ -2302,7 +3743,7 @@ class ModDeckApp {
             // Replace emotes by position, not by name to avoid conflicts
             allEmotePositions.forEach(emote => {
                 const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.emoteId}/default/dark/1.0`;
-                const emoteHtml = `<img src="${emoteUrl}" alt="${emote.emoteName}" class="emote-twitch" title="${emote.emoteName}">`;
+                const emoteHtml = `<img src="${emoteUrl}" alt="${emote.emoteName}" class="emote-twitch" title="${emote.emoteName}" data-emote-name="${emote.emoteName}">`;
 
                 // Replace by position to avoid recursive replacement
                 processedMessage = processedMessage.substring(0, emote.start) +
@@ -2339,25 +3780,166 @@ class ModDeckApp {
 
         // Check channel-specific emotes first
         const channelEmotes = this.sevenTVEmotes.get(channelName);
-        if (channelEmotes) {
+        if (channelEmotes && channelEmotes.size > 0) {
             channelEmotes.forEach((emote, emoteName) => {
-                const emoteUrl = `https:${emote.urls}/1x.webp`;
-                const emoteHtml = `<img src="${emoteUrl}" alt="${emoteName}" class="emote-7tv" title="${emoteName}">`;
-                processedMessage = replaceEmoteInText(processedMessage, emoteName, emoteHtml);
+                if (processedMessage.includes(emoteName)) {
+                    // Use the correct URL format like the working chat widget
+                    if (emote.urls && Array.isArray(emote.urls)) {
+                        // Find the appropriate URL (priority to 2x.webp)
+                        const imageUrl = emote.urls.find(url => url.includes('2x.webp')) ||
+                                        emote.urls.find(url => url.includes('1x.webp')) ||
+                                        emote.urls[0];
+
+                        if (imageUrl) {
+                            const fullUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
+                            const emoteHtml = `<img src="${fullUrl}" alt="${emoteName}" class="emote-7tv" title="${emoteName}" data-emote-name="${emoteName}">`;
+                            processedMessage = replaceEmoteInText(processedMessage, emoteName, emoteHtml);
+                        }
+                    }
+                }
             });
         }
 
         // Then check global emotes
-        this.globalSevenTVEmotes.forEach((emote, emoteName) => {
-            // Only process if the emote name exists as a whole word in text content
-            if (processedMessage.includes(emoteName)) {
-                const emoteUrl = `https:${emote.urls}/1x.webp`;
-                const emoteHtml = `<img src="${emoteUrl}" alt="${emoteName}" class="emote-7tv" title="${emoteName}">`;
-                processedMessage = replaceEmoteInText(processedMessage, emoteName, emoteHtml);
+        if (this.globalSevenTVEmotes.size > 0) {
+            this.globalSevenTVEmotes.forEach((emote, emoteName) => {
+                // Only process if the emote name exists as a whole word in text content
+                if (processedMessage.includes(emoteName)) {
+                    // Use the correct URL format like the working chat widget
+                    if (emote.urls && Array.isArray(emote.urls)) {
+                        // Find the appropriate URL (priority to 2x.webp)
+                        const imageUrl = emote.urls.find(url => url.includes('2x.webp')) ||
+                                        emote.urls.find(url => url.includes('1x.webp')) ||
+                                        emote.urls[0];
+
+                        if (imageUrl) {
+                            const fullUrl = imageUrl.startsWith('//') ? `https:${imageUrl}` : imageUrl;
+                            const emoteHtml = `<img src="${fullUrl}" alt="${emoteName}" class="emote-7tv" title="${emoteName}" data-emote-name="${emoteName}">`;
+                            processedMessage = replaceEmoteInText(processedMessage, emoteName, emoteHtml);
+                        }
+                    }
+                }
+            });
+        }
+
+        return processedMessage;
+    }
+
+    reprocessMessagesWithEmotes(channelName) {
+        console.log(`Re-processing messages with 7TV emotes for channel: ${channelName}`);
+
+        // Get the channel data
+        const channelData = this.channels.get(channelName);
+        if (!channelData || !channelData.messages) {
+            console.log(`No messages found for channel: ${channelName}`);
+            return;
+        }
+
+        // Get the chat container for this channel
+        const chatContainer = document.getElementById(`chat-${channelName}`);
+        if (!chatContainer) {
+            console.log(`Chat container not found for channel: ${channelName}`);
+            return;
+        }
+
+        // Get all message elements in the chat container
+        const messageElements = chatContainer.querySelectorAll('.chat-message');
+        console.log(`Found ${messageElements.length} message elements to re-process`);
+
+        // Re-process each message
+        messageElements.forEach((messageElement, index) => {
+            const messageContent = messageElement.querySelector('.message-content');
+            if (messageContent) {
+                // Get the original message text (remove any existing emote images)
+                let originalText = messageContent.innerHTML;
+
+                // Remove existing 7TV emote images to get the original text
+                const emoteImages = messageContent.querySelectorAll('.emote-7tv');
+                emoteImages.forEach(img => {
+                    originalText = originalText.replace(img.outerHTML, img.alt || img.title);
+                });
+
+                // Process the message with 7TV emotes for this channel
+                const processedMessage = this.process7TVEmotes(originalText, channelName);
+
+                // Update the message content
+                messageContent.innerHTML = processedMessage;
+
+                // Debug for the specific emote we're testing
+                if (originalText.includes('catsittingverycomfortablearoundacampfirewithitsfriends')) {
+                    console.log(`Re-processed message ${index}:`, {
+                        original: originalText,
+                        processed: processedMessage,
+                        channel: channelName
+                    });
+                }
             }
         });
 
-        return processedMessage;
+        console.log(`Finished re-processing messages for channel: ${channelName}`);
+    }
+
+    copyMessageText(messageObj) {
+        try {
+            // Get the original message text (before emote processing)
+            let originalText = messageObj.message;
+
+                        // If the message has been processed with emotes, we need to extract the original text
+            // from the message element in the DOM
+            const messageElement = document.querySelector(`[data-message-id="${messageObj.id}"]`);
+            if (messageElement) {
+                // Look for the message-text span specifically
+                const messageText = messageElement.querySelector('.message-text');
+                if (messageText) {
+                    // Get only the text content, not the HTML structure
+                    let currentContent = messageText.textContent || messageText.innerText || '';
+
+                    // If we have text content, use it directly
+                    if (currentContent.trim()) {
+                        originalText = currentContent.trim();
+                    } else {
+                        // Fallback: Get the current HTML content and clean it
+                        let htmlContent = messageText.innerHTML;
+
+                        // Replace all 7TV emote images with their original text
+                        const emoteImages = messageText.querySelectorAll('.emote-7tv');
+                        emoteImages.forEach(img => {
+                            const emoteName = img.alt || img.title || img.getAttribute('data-emote-name');
+                            if (emoteName) {
+                                htmlContent = htmlContent.replace(img.outerHTML, emoteName);
+                            }
+                        });
+
+                        // Replace all Twitch emote images with their original text
+                        const twitchEmoteImages = messageText.querySelectorAll('.emote-twitch');
+                        twitchEmoteImages.forEach(img => {
+                            const emoteName = img.alt || img.title || img.getAttribute('data-emote-name');
+                            if (emoteName) {
+                                htmlContent = htmlContent.replace(img.outerHTML, emoteName);
+                            }
+                        });
+
+                        // Use the extracted text if we found emotes
+                        if (emoteImages.length > 0 || twitchEmoteImages.length > 0) {
+                            originalText = htmlContent;
+                        }
+                    }
+                }
+            }
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(originalText).then(() => {
+                this.showNotification('Message copied to clipboard', 'success');
+                console.log('Copied message text:', originalText);
+            }).catch(err => {
+                console.error('Failed to copy message:', err);
+                this.showNotification('Failed to copy message', 'error');
+            });
+
+        } catch (error) {
+            console.error('Error copying message text:', error);
+            this.showNotification('Failed to copy message', 'error');
+        }
     }
 
     escapeRegex(string) {

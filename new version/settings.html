@@ -234,16 +234,16 @@
 <body>
     <div class="settings-container">
         <div class="settings-header">
-            <h1>ModDeck Settings</h1>
-            <p>Configure your ModDeck experience</p>
+            <h1 id="settings-title">ModDeck Settings</h1>
+            <p id="settings-subtitle">Configure your ModDeck experience</p>
         </div>
 
         <!-- Window Settings -->
         <div class="settings-section">
-            <h3>Window Settings</h3>
+            <h3 id="window-settings-title">Window Settings</h3>
 
             <div class="setting-item">
-                <label class="setting-label">Window Width</label>
+                <label class="setting-label" id="window-width-label">Window Width</label>
                 <div class="setting-range">
                     <input type="range" id="window-width" class="range-input" min="350" max="800" value="400">
                     <span id="width-value" class="range-value">400px</span>
@@ -251,7 +251,7 @@
             </div>
 
             <div class="setting-item">
-                <label class="setting-label">Window Height</label>
+                <label class="setting-label" id="window-height-label">Window Height</label>
                 <div class="setting-range">
                     <input type="range" id="window-height" class="range-input" min="400" max="1000" value="600">
                     <span id="height-value" class="range-value">600px</span>
@@ -261,7 +261,7 @@
             <div class="setting-item">
                 <label class="setting-checkbox">
                     <input type="checkbox" id="always-on-top">
-                    <span>Always on top</span>
+                    <span id="always-on-top-label">Always on top</span>
                 </label>
             </div>
         </div>
@@ -361,6 +361,60 @@
             constructor() {
                 this.settings = {};
                 this.mentionKeywords = ['fugu_fps'];
+                this.translations = {
+                    en: {
+                        'ModDeck Settings': 'ModDeck Settings',
+                        'Configure your ModDeck experience': 'Configure your ModDeck experience',
+                        'Window Settings': 'Window Settings',
+                        'Window Width': 'Window Width',
+                        'Window Height': 'Window Height',
+                        'Always on top': 'Always on top',
+                        'Twitch Settings': 'Twitch Settings',
+                        'Default Channel': 'Default Channel',
+                        'Enter channel name...': 'Enter channel name...',
+                        'Chat Settings': 'Chat Settings',
+                        'Show user badges': 'Show user badges',
+                        'Show username colors': 'Show username colors',
+                        'Enable mention detection': 'Enable mention detection',
+                        'Mention Keywords': 'Mention Keywords',
+                        'Add keyword...': 'Add keyword...',
+                        'Theme Settings': 'Theme Settings',
+                        'Theme': 'Theme',
+                        'Light (Coming Soon)': 'Light (Coming Soon)',
+                        'Update Settings': 'Update Settings',
+                        'Check for updates automatically': 'Check for updates automatically',
+                        'Current Version': 'Current Version',
+                        'Reset to Defaults': 'Reset to Defaults',
+                        'Save Settings': 'Save Settings',
+                        'Settings saved successfully!': 'Settings saved successfully!'
+                    },
+                    fr: {
+                        'ModDeck Settings': 'Paramètres ModDeck',
+                        'Configure your ModDeck experience': 'Configurez votre expérience ModDeck',
+                        'Window Settings': 'Paramètres de fenêtre',
+                        'Window Width': 'Largeur de la fenêtre',
+                        'Window Height': 'Hauteur de la fenêtre',
+                        'Always on top': 'Toujours au premier plan',
+                        'Twitch Settings': 'Paramètres Twitch',
+                        'Default Channel': 'Canal par défaut',
+                        'Enter channel name...': 'Entrez le nom du canal...',
+                        'Chat Settings': 'Paramètres de chat',
+                        'Show user badges': 'Afficher les badges utilisateur',
+                        'Show username colors': 'Afficher les couleurs des noms d\'utilisateur',
+                        'Enable mention detection': 'Activer la détection des mentions',
+                        'Mention Keywords': 'Mots-clés de mention',
+                        'Add keyword...': 'Ajouter un mot-clé...',
+                        'Theme Settings': 'Paramètres de thème',
+                        'Theme': 'Thème',
+                        'Light (Coming Soon)': 'Clair (Bientôt disponible)',
+                        'Update Settings': 'Paramètres de mise à jour',
+                        'Check for updates automatically': 'Vérifier automatiquement les mises à jour',
+                        'Current Version': 'Version actuelle',
+                        'Reset to Defaults': 'Réinitialiser aux valeurs par défaut',
+                        'Save Settings': 'Sauvegarder les paramètres',
+                        'Settings saved successfully!': 'Paramètres sauvegardés avec succès !'
+                    }
+                };
                 this.init();
             }
 
@@ -368,6 +422,39 @@
                 await this.loadSettings();
                 this.setupEventListeners();
                 this.updateUI();
+                this.updateLanguage();
+            }
+
+            translate(key) {
+                const language = this.settings.language || 'en';
+                return this.translations[language]?.[key] || key;
+            }
+
+            updateLanguage() {
+                // Update all translatable elements
+                document.getElementById('settings-title').textContent = this.translate('ModDeck Settings');
+                document.getElementById('settings-subtitle').textContent = this.translate('Configure your ModDeck experience');
+                document.getElementById('window-settings-title').textContent = this.translate('Window Settings');
+                document.getElementById('window-width-label').textContent = this.translate('Window Width');
+                document.getElementById('window-height-label').textContent = this.translate('Window Height');
+                document.getElementById('always-on-top-label').textContent = this.translate('Always on top');
+
+                // Update other sections
+                const twitchSettingsTitle = document.querySelector('.settings-section:nth-child(3) h3');
+                if (twitchSettingsTitle) twitchSettingsTitle.textContent = this.translate('Twitch Settings');
+
+                const chatSettingsTitle = document.querySelector('.settings-section:nth-child(4) h3');
+                if (chatSettingsTitle) chatSettingsTitle.textContent = this.translate('Chat Settings');
+
+                const themeSettingsTitle = document.querySelector('.settings-section:nth-child(5) h3');
+                if (themeSettingsTitle) themeSettingsTitle.textContent = this.translate('Theme Settings');
+
+                const updateSettingsTitle = document.querySelector('.settings-section:nth-child(6) h3');
+                if (updateSettingsTitle) updateSettingsTitle.textContent = this.translate('Update Settings');
+
+                // Update buttons
+                document.getElementById('reset-settings').textContent = this.translate('Reset to Defaults');
+                document.getElementById('save-settings').textContent = this.translate('Save Settings');
             }
 
             async loadSettings() {
@@ -491,7 +578,7 @@
 
                 try {
                     await ipcRenderer.invoke('save-settings', newSettings);
-                    this.showNotification('Settings saved successfully!');
+                    this.showNotification(this.translate('Settings saved successfully!'));
 
                     // Close settings window after a delay
                     setTimeout(() => {

@@ -57,17 +57,17 @@
         <div id="login-section" class="login-section">
             <div class="login-container">
                 <div class="login-header">
-                    <h3>Connect Your Twitch Account</h3>
-                    <p>Login to send messages and access subscriber features</p>
+                    <h3 data-translate="Connect Your Twitch Account">Connect Your Twitch Account</h3>
+                    <p data-translate="Login to send messages and access subscriber features">Login to send messages and access subscriber features</p>
                 </div>
                 <div class="login-controls">
-                    <input type="text" id="twitch-username" placeholder="Your Twitch Username" />
-                    <input type="password" id="twitch-oauth" placeholder="OAuth Token (oauth:xxxxx)" />
-                    <button id="login-btn" class="primary-btn">Login to Twitch</button>
-                    <button id="logout-btn" class="secondary-btn hidden">Logout</button>
+                    <input type="text" id="twitch-username" placeholder="Your Twitch Username" data-translate-placeholder="Your Twitch Username" />
+                    <input type="password" id="twitch-oauth" placeholder="OAuth Token (oauth:xxxxx)" data-translate-placeholder="OAuth Token (oauth:xxxxx)" />
+                    <button id="login-btn" class="primary-btn" data-translate="Login to Twitch">Login to Twitch</button>
+                    <button id="logout-btn" class="secondary-btn hidden" data-translate="Logout">Logout</button>
                 </div>
                 <div class="login-help">
-                    <p><small>Get your OAuth token from <a href="https://twitchapps.com/tmi/" target="_blank">twitchapps.com/tmi</a></small></p>
+                    <p><small><span data-translate="Get your OAuth token from">Get your OAuth token from</span> <a href="https://twitchapps.com/tmi/" target="_blank">twitchapps.com/tmi</a></small></p>
                 </div>
             </div>
         </div>
@@ -75,13 +75,13 @@
         <!-- Channel Tabs -->
         <div class="tabs-container">
             <div class="main-tabs">
-                <button id="chat-tab" class="main-tab active" data-tab="chat">Chat</button>
+                <button id="chat-tab" class="main-tab active" data-tab="chat" data-translate="Chat">Chat</button>
                 <button id="mentions-tab" class="main-tab" data-tab="mentions">
-                    Mentions
+                    <span data-translate="Mentions">Mentions</span>
                     <span id="mentions-count" class="mention-counter hidden">0</span>
                 </button>
                 <button id="modlog-tab" class="main-tab" data-tab="modlog">
-                    Mod Log
+                    <span data-translate="Mod Log">Mod Log</span>
                     <span id="modlog-count" class="mention-counter hidden">0</span>
                 </button>
             </div>
@@ -99,14 +99,14 @@
         <div id="add-channel-modal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Add New Channel</h3>
+                    <h3 data-translate="Add New Channel">Add New Channel</h3>
                     <button id="close-modal" class="close-modal-btn">×</button>
                 </div>
                 <div class="modal-body">
-                    <input type="text" id="new-channel-input" placeholder="Enter channel name (e.g., fugu_fps)" />
+                    <input type="text" id="new-channel-input" placeholder="Enter channel name (e.g., fugu_fps)" data-translate-placeholder="Enter channel name" />
                     <div class="modal-actions">
-                        <button id="add-channel-btn" class="primary-btn">Add Channel</button>
-                        <button id="cancel-add-channel" class="secondary-btn">Cancel</button>
+                        <button id="add-channel-btn" class="primary-btn" data-translate="Add Channel">Add Channel</button>
+                        <button id="cancel-add-channel" class="secondary-btn" data-translate="Cancel">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -128,9 +128,9 @@
                     <!-- Tab content will be added dynamically -->
                     <div id="no-channels" class="no-channels">
                         <div class="no-channels-content">
-                            <h3>Welcome to ModDeck v3!</h3>
-                            <p>Add your first channel to get started</p>
-                            <button id="add-first-channel" class="primary-btn">Add Channel</button>
+                            <h3 data-translate="Welcome to ModDeck v3!">Welcome to ModDeck v3!</h3>
+                            <p data-translate="Add your first channel to get started">Add your first channel to get started</p>
+                            <button id="add-first-channel" class="primary-btn" data-translate="Add Channel">Add Channel</button>
                         </div>
                     </div>
                 </div>
@@ -156,16 +156,16 @@
             <div id="modlog-content" class="tab-content">
                 <div class="modlog-panel">
                     <div class="modlog-header">
-                        <h3>Moderation Log</h3>
+                        <h3 data-translate="Moderation Log">Moderation Log</h3>
                         <div class="modlog-controls">
-                            <button id="clear-modlog" class="secondary-btn">Clear Log</button>
-                            <button id="export-modlog" class="secondary-btn">Export</button>
+                            <button id="clear-modlog" class="secondary-btn" data-translate="Clear Log">Clear Log</button>
+                            <button id="export-modlog" class="secondary-btn" data-translate="Export">Export</button>
                         </div>
                     </div>
                     <div id="modlog-list" class="modlog-list">
                         <!-- Moderation actions will be added dynamically -->
                         <div id="no-modlog" class="no-modlog">
-                            <p>No moderation actions yet. Actions will appear here when you perform moderation.</p>
+                            <p data-translate="No moderation actions yet">No moderation actions yet</p>
                         </div>
                     </div>
                 </div>
@@ -267,7 +267,7 @@
                             <span>OAuth Access Token</span>
                             <input type="password" id="helix-access-token" placeholder="Enter OAuth Token (Bearer)" />
                         </label>
-                        <small>Scopes required: moderator:manage:chat_messages, moderator:manage:banned_users, user:read:email (optional)</small>
+                        <small>Scopes required: user:write:chat, moderator:manage:chat_messages, moderator:manage:banned_users, channel:read:predictions, channel:manage:predictions, user:read:email (optional)</small>
                     </div>
                 </div>
                 <div class="modal-actions">

@@ -37,7 +37,7 @@
     ],
     "win": {
       "target": "zip",
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.ico"
     },
     "linux": {
       "target": "tar.gz",

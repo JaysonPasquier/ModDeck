@@ -1,6 +1,17 @@
-# ModDeck v2
+# ModDeck v3
 
-A modern, feature-rich Twitch chat widget for streamers and moderators.
+A modern, feature-rich Twitch chat widget with advanced moderation tools for streamers and moderators.
+
+## 🎉 What's New in v3
+
+ModDeck v3 represents a complete transformation with:
+- **🎨 Complete UI Modernization**: Glass morphism design, responsive layout, modern animations
+- **🔧 Advanced Moderation System**: Full Twitch Helix API integration with comprehensive moderation tools
+- **🌍 Complete French Localization**: Full bilingual support with proper translations
+- **📱 Mobile & Tablet Support**: Responsive design that works on all screen sizes
+- **⚡ Performance Improvements**: Optimized rendering and better memory management
+
+See the [CHANGELOG.md](changelog/v3.md) for detailed information about all changes.
 
 ## Features
 
@@ -14,12 +25,28 @@ A modern, feature-rich Twitch chat widget for streamers and moderators.
 - **Emote Integration**: Full support for Twitch emotes and 7TV emotes
 - **Custom Badge Images**: Support for channel-specific subscriber and event badges
 
+### 🔧 Advanced Moderation System (NEW in v3)
+- **Twitch Helix API Integration**: Full integration with Twitch's modern API for reliable moderation
+- **Comprehensive Moderation Actions**:
+  - Delete messages with reason tracking
+  - Timeout users with custom duration and reason
+  - Ban users with detailed reason logging
+  - Unban users with confirmation
+- **Moderation Log**: Dedicated tab to track all moderation actions with timestamps and details
+- **Visual Moderation Indicators**: Real-time visual feedback for deleted messages, timeouts, and bans
+- **User History**: View recent messages from any user for context
+- **Recurrent Message Detection**: Automatically detect and flag similar messages
+- **Context Menus**: Right-click menus for quick moderation actions
+
 ### 🛠️ Interface Features
 - **Custom Title Bar**: Minimal, modern interface without traditional window borders
 - **Resizable Widget**: Adjust size and position to fit your workspace
-- **Tab Navigation**: Switch between chat and mentions easily
+- **Tab Navigation**: Switch between chat, mentions, and moderation log
 - **Auto-scroll**: Automatically scroll to new messages
 - **Connection Status**: Real-time connection indicator and controls
+- **Modern Design**: Glass morphism effects, rounded corners, and smooth animations
+- **Responsive Layout**: Adapts to different screen sizes and orientations
+- **Touch-Friendly**: Optimized for touch devices and tablets
 
 ### ⚙️ Settings & Customization
 - **Window Management**: Save window size, position, and always-on-top preference
@@ -27,6 +54,9 @@ A modern, feature-rich Twitch chat widget for streamers and moderators.
 - **Mention Keywords**: Set custom keywords that trigger mention notifications
 - **Theme Support**: Dark theme with light theme planned
 - **Auto-save**: All preferences are automatically saved
+- **Twitch API Integration**: Configure Helix API credentials for advanced moderation
+- **Language Support**: Switch between English and French
+- **Advanced Filtering**: More granular control over message filtering
 
 ### 🔄 Data Management
 - **24-hour Data Retention**: Chat data automatically cleans up after 24 hours
@@ -41,7 +71,7 @@ A modern, feature-rich Twitch chat widget for streamers and moderators.
 ## Installation & Running
 
 ### Quick Start (No Installation Required)
-ModDeck v2 is designed to run as a lightweight widget without traditional installation:
+ModDeck v3 is designed to run as a lightweight widget without traditional installation:
 
 **On Linux/macOS:**
 ```bash
@@ -98,14 +128,35 @@ This creates compressed archives instead of traditional installers or executable
 ## Usage
 
 ### Getting Started
-1. Launch ModDeck v2
+1. Launch ModDeck v3
 2. Enter a Twitch channel name in the connection field
 3. Click "Connect" to start receiving chat messages
-4. Use the tabs to switch between chat and mentions
+4. Use the tabs to switch between chat, mentions, and moderation log
 5. Apply filters to focus on specific users, roles, or keywords
 
+### Advanced Moderation (NEW in v3)
+To use the advanced moderation features:
+
+1. **Setup Twitch API Credentials**:
+   - Go to [Twitch Developer Console](https://dev.twitch.tv/console)
+   - Create a new application
+   - Get your Client ID and generate an OAuth token with moderator permissions
+   - Add these credentials in the settings
+
+2. **Moderation Actions**:
+   - **Right-click** on any message to open the context menu
+   - Choose from: Delete Message, Timeout User, Ban User, View History
+   - Set custom duration and reason for timeouts and bans
+   - View the Moderation Log tab to see all actions
+
+3. **Visual Feedback**:
+   - Deleted messages are marked with "DELETED" badge and strikethrough
+   - Timed-out users show "TIMEOUT" badge on their messages
+   - Banned users show "BANNED" badge on their messages
+   - All moderation actions are logged with timestamps and details
+
 ### Badge System
-ModDeck v2 includes comprehensive badge support:
+ModDeck v3 includes comprehensive badge support:
 
 - **Standard Badges**: Broadcaster, Moderator, VIP, Subscriber
 - **Activity Badges**: Bits, Sub Gifter, Clips Leader, Predictions
@@ -137,6 +188,7 @@ See `images/README.md` for complete badge image specifications.
 - **Electron**: Cross-platform desktop application framework
 - **TMI.js**: Twitch chat client for JavaScript
 - **electron-updater**: Automatic update system
+- **node-fetch**: HTTP client for Twitch Helix API integration
 - **Native HTML/CSS/JS**: No heavy frameworks for optimal performance
 
 ### Architecture
@@ -175,7 +227,7 @@ new version/
 - `npm run pack`: Build directory only
 
 ### Distribution Options
-Instead of traditional .exe files, ModDeck v2 offers:
+Instead of traditional .exe files, ModDeck v3 offers:
 
 1. **Direct Running**: Use the launcher scripts (`run-moddeck.sh` or `run-moddeck.bat`)
 2. **Portable Folder**: `npm run build-portable` creates a folder you can move anywhere
