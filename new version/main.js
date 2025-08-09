@@ -9,11 +9,23 @@ let mainWindow;
 let settingsWindow;
 let versionManager;
 
-// Configuration and data management
-const DATA_DIR = path.join(__dirname, 'data');
-const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-const CHAT_DATA_FILE = path.join(DATA_DIR, 'chat_data.json');
-const SESSION_LOG_FILE = path.join(DATA_DIR, 'session_log.json');
+// Configuration and data management (will be initialized after app is ready)
+let DATA_DIR;
+let SETTINGS_FILE;
+let CHAT_DATA_FILE;
+let SESSION_LOG_FILE;
+
+function initializeDataPaths() {
+    DATA_DIR = path.join(app.getPath('userData'), 'data');
+    SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+    CHAT_DATA_FILE = path.join(DATA_DIR, 'chat_data.json');
+    SESSION_LOG_FILE = path.join(DATA_DIR, 'session_log.json');
+
+    // Ensure data directory exists
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+}
 
 // Default settings
 const DEFAULT_SETTINGS = {
@@ -41,10 +53,7 @@ const DEFAULT_SETTINGS = {
   activeTab: null
 };
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+
 
 // Load settings
 function loadSettings() {
@@ -333,6 +342,9 @@ function createSettingsWindow() {
 
 // App event handlers
 app.whenReady().then(() => {
+  // Initialize data paths first
+  initializeDataPaths();
+
   // Set app icon for taskbar
   const iconPath = process.platform === 'win32'
     ? path.join(__dirname, 'assets', 'icon.ico')

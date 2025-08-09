@@ -8,6 +8,8 @@
     "dev": "electron . --dev",
     "build-portable": "electron-builder --dir",
     "build-zip": "electron-builder --win zip --linux tar.gz --mac zip",
+    "build-installer": "electron-builder --win nsis",
+    "build": "electron-builder --win",
     "pack": "electron-builder --dir"
   },
   "author": "fugu_fps",
@@ -36,8 +38,36 @@
       "src/**/*"
     ],
     "win": {
-      "target": "zip",
-      "icon": "assets/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "publisherName": "fugu_fps",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ModDeck",
+      "displayLanguageSelector": false,
+      "installerLanguages": ["en", "fr"],
+      "language": "2052",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     },
     "linux": {
       "target": "tar.gz",
