@@ -27,7 +27,6 @@ yarn-error.log*
 # Electron
 /out/
 /app/
-*.exe
 *.dmg
 *.AppImage
 
